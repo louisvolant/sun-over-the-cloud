@@ -50,3 +50,4 @@ dist/
 build/
 .cache/
 /concatenated_codebase.txt
+frontend/sw.js
