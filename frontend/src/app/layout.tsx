@@ -1,5 +1,4 @@
 // src/app/layout.tsx
-import type { Metadata } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Footer from './components/Footer';
@@ -10,6 +9,35 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import "./globals.css";
 import Link from 'next/link';
 import Image from 'next/image';
+import type { Metadata, Viewport } from 'next';
+
+
+// 1. Separate Viewport export
+export const viewport: Viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
+// 2. Metadata for PWA assets
+export const metadata: Metadata = {
+  title: {
+    template: 'Rain Under The Cloud',
+    default: 'Rain Under The Cloud',
+  },
+  description: 'Have fun watching weather graphs',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'SuperApp',
+  },
+};
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,14 +48,6 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
-export const metadata: Metadata = {
-  title: "Rain Under The Cloud",
-  description: "Let's have fun watching weather graphs",
-  icons: {
-    icon: "/icon.png",
-  },
-};
 
 export default function RootLayout({
   children,
