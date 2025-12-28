@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'SuperApp',
   },
 };
@@ -62,7 +62,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <LanguageProvider>
-              <header className="flex flex-col md:flex-row md:justify-between md:items-center p-4 bg-white dark:bg-gray-800 shadow-md pt-safe-top">
+              <header className="flex flex-col md:flex-row md:justify-between md:items-center px-4 pb-4 bg-white dark:bg-gray-800 shadow-md pt-[calc(1rem+var(--safe-top))]">
                 <Link href="/" className="flex items-center space-x-2 mb-4 md:mb-0">
                   <Image src="/icon.png" alt="Rain Under The Cloud" width={40} height={40} />
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">Rain Under The Cloud</h1>
