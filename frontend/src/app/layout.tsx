@@ -23,8 +23,8 @@ export const viewport: Viewport = {
 // 2. Metadata for PWA assets
 export const metadata: Metadata = {
   title: {
-    template: 'Rain Under The Cloud',
-    default: 'Rain Under The Cloud',
+    template: 'Sun Over The Cloud',
+    default: 'Sun Over The Cloud',
   },
   description: 'Have fun watching weather graphs',
   icons: {
@@ -64,8 +64,8 @@ export default function RootLayout({
             <LanguageProvider>
               <header className="flex flex-col md:flex-row md:justify-between md:items-center px-4 pb-4 bg-white dark:bg-gray-800 shadow-md pt-[calc(1rem+var(--safe-top))]">
                 <Link href="/" className="flex items-center space-x-2 mb-4 md:mb-0">
-                  <Image src="/icon.png" alt="Rain Under The Cloud" width={40} height={40} />
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">Rain Under The Cloud</h1>
+                  <Image src="/icon.png" alt="Sun Over The Cloud" width={40} height={40} />
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">Sun Over The Cloud</h1>
                 </Link>
                 <div className="self-end md:self-auto">
                   <HeaderButtons />

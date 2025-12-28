@@ -1,5 +1,5 @@
 {
-  "app_title": "Rain Under The Cloud",
+  "app_title": "Sun Over The Cloud",
   "app_description": "Let's have fun watching weather graphs",
   "search_placeholder": "Enter a city",
   "search_button": "Search",
@@ -32,7 +32,7 @@
   "humidity_unit": "%",
   "rain_unit": "mm",
   "snow_unit": "cm",
-  "footer_copyright": "© {year} RainUnderThe.Cloud. All rights reserved.",
+  "footer_copyright": "© {year} SunOverThe.Cloud. All rights reserved.",
   "toggle_dark_mode": "Toggle dark mode",
   "login_modal_title": "Login",
   "username_or_email_label": "Username or Email",

@@ -19,7 +19,7 @@ const cache = apicache.middleware('1 minute', (req, res) => req.method === 'GET'
 app.use(express.json());
 const allowedOrigins = [
   process.env.CORS_DEV_FRONTEND_URL_AND_PORT,
-  'https://rainunderthe.cloud',
+  'https://sunoverthe.cloud',
 ].filter(Boolean);
 
 app.use(cors({

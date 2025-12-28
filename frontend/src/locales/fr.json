@@ -32,7 +32,7 @@
   "humidity_unit": "%",
   "rain_unit": "mm",
   "snow_unit": "cm",
-  "footer_copyright": "© {year} RainUnderThe.Cloud. Tous droits réservés.",
+  "footer_copyright": "© {year} SunOverThe.Cloud. Tous droits réservés.",
   "toggle_dark_mode": "Basculer le mode sombre",
   "login_modal_title": "Connexion",
   "username_or_email_label": "Nom d'utilisateur ou Email",

@@ -1,7 +1,7 @@
-# Rain Under The Cloud - Weather Application
+# Sun Over The Cloud - Weather Application
 
 ## Overview
-Rain Under The Cloud is a comprehensive weather application built with Next.js that provides current weather conditions, forecasts, and historical weather data visualization. The application offers an intuitive interface for searching locations and viewing detailed weather information including precipitation, humidity, and cloud cover data.
+Sun Over The Cloud is a comprehensive weather application built with Next.js that provides current weather conditions, forecasts, and historical weather data visualization. The application offers an intuitive interface for searching locations and viewing detailed weather information including precipitation, humidity, and cloud cover data.
 
 ## Features
 - **Location Search**: Search for any city worldwide
@@ -41,7 +41,7 @@ Rain Under The Cloud is a comprehensive weather application built with Next.js t
 1. Clone the repository:
 ```bash
 git clone [repository-url]
-cd rain-under-the-cloud
+cd sun-over-the-cloud
 ```
 
 2. Install dependencies:
