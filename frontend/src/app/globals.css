@@ -2,10 +2,45 @@
 @import 'flag-icons/css/flag-icons.min.css';
 @import 'weathericons/css/weather-icons.css';
 @import 'weathericons/css/weather-icons-wind.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
+/* 1. Import Tailwind v4 */
+@import "tailwindcss";
+
+/* 2. Define Theme Variables */
+@theme {
+  /* Colors - Mapping your previous tailwind.config.ts colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: #3B82F6;
+  --color-primary-focus: #2563EB;
+  --color-secondary: #8B5CF6;
+  --color-secondary-focus: #7C3AED;
+
+  /* Spacing */
+  --spacing-container: 80rem;
+
+  /* Animations */
+  --animate-fade-in: fadeIn 0.3s ease-in-out;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-spin-slow: spin 3s linear infinite;
+  --animate-bounce-slow: bounce 2s infinite;
+
+  /* Keyframes */
+  @keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+}
+
+/* 3. Base Styles & Variables */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -13,25 +48,30 @@
   --safe-bottom: env(safe-area-inset-bottom);
 }
 
-@layer utilities {
-  .pt-safe-top {
-    padding-top: var(--safe-top);
-  }
-  .pb-safe-bottom {
-    padding-bottom: var(--safe-bottom);
-  }
-}
-
-html, body {
-  height: 100%;
-  min-height: -webkit-fill-available;
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+/* 4. Custom Utilities using @utility (v4 syntax) */
+@utility pt-safe-top {
+  padding-top: var(--safe-top);
+}
+
+@utility pb-safe-bottom {
+  padding-bottom: var(--safe-bottom);
+}
+
+@utility transition-all {
+  transition: all 0.3s ease;
+}
+
+/* 5. Custom Global Styles */
+html, body {
+  height: 100%;
+  min-height: -webkit-fill-available;
 }
 
 html {
@@ -43,46 +83,4 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
-}
-
-/* Custom utilities */
-@layer utilities {
-  .transition-all {
-    transition: all 0.3s ease;
-  }
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.spin-slow {
-  animation: spin 3s linear infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.15);
-  }
-}
-
-.pulse-slow {
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-.bounce-slow {
-  animation: bounce 1.5s ease-in-out infinite;
 }
