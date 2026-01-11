@@ -22,11 +22,15 @@ export const viewport: Viewport = {
 
 // 2. Metadata for PWA assets
 export const metadata: Metadata = {
+  metadataBase: new URL('https://sunoverthe.cloud'),
   title: {
     template: 'Sun Over The Cloud',
     default: 'Sun Over The Cloud',
   },
   description: 'Have fun watching weather graphs',
+  alternates: {
+      canonical: '/',
+    },
   icons: {
     icon: '/icon.png',
     apple: '/icon.png',
