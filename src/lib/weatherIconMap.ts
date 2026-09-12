@@ -1,28 +1,28 @@
 // src/lib/weatherIconMap.ts
 
 export const weatherIconColorMap: Record<string, string> = {
-  '01d': 'text-yellow-400',        // Sunny day
-  '01n': 'text-indigo-400',        // Clear night (deep night sky)
-  '02d': 'text-yellow-300',        // Few clouds day
-  '02n': 'text-indigo-300',        // Few clouds night
-  '03d': 'text-gray-400',          // Scattered clouds day
-  '03n': 'text-gray-500 dark:text-gray-400', // Scattered clouds night (ensure good contrast in dark mode if needed)
-  '04d': 'text-gray-500 dark:text-gray-400', // Broken clouds day
-  '04n': 'text-gray-600 dark:text-gray-500', // Broken clouds night
+  '01d': 'text-amber-500 dark:text-amber-400',        // Sunny day
+  '01n': 'text-indigo-400 dark:text-indigo-300',        // Clear night
+  '02d': 'text-amber-400 dark:text-amber-300',        // Few clouds day
+  '02n': 'text-indigo-300 dark:text-indigo-200',        // Few clouds night
+  '03d': 'text-gray-400 dark:text-gray-300',          // Scattered clouds day
+  '03n': 'text-gray-400 dark:text-gray-300',          // Scattered clouds night
+  '04d': 'text-gray-500 dark:text-gray-400',          // Broken clouds day
+  '04n': 'text-gray-500 dark:text-gray-400',          // Broken clouds night
 
-  '09d': 'text-blue-400',          // Showers day (lighter blue)
-  '09n': 'text-blue-500',          // Showers night
-  '10d': 'text-blue-500',          // Rain day (standard blue)
-  '10n': 'text-blue-500',          // Rain night
+  '09d': 'text-blue-500 dark:text-blue-400',          // Showers day
+  '09n': 'text-blue-500 dark:text-blue-400',          // Showers night
+  '10d': 'text-blue-600 dark:text-blue-400',          // Rain day
+  '10n': 'text-blue-500 dark:text-blue-400',          // Rain night
 
-  '11d': 'text-purple-500',        // Thunderstorm day
-  '11n': 'text-purple-600',        // Thunderstorm night
+  '11d': 'text-purple-600 dark:text-purple-400',      // Thunderstorm day
+  '11n': 'text-purple-500 dark:text-purple-300',      // Thunderstorm night
 
-  '13d': 'text-sky-300',           // Snow day (icy blue, visible on white bg)
-  '13n': 'text-sky-300',           // Snow night (consistent icy blue)
+  '13d': 'text-cyan-500 dark:text-cyan-300',          // Snow day
+  '13n': 'text-cyan-400 dark:text-cyan-300',          // Snow night
 
-  '50d': 'text-slate-400',         // Fog/Mist day (slate has a bit of blue, good for atmosphere)
-  '50n': 'text-slate-500',         // Fog/Mist night
+  '50d': 'text-teal-600 dark:text-teal-400',          // Fog/Mist day
+  '50n': 'text-teal-500 dark:text-teal-400',          // Fog/Mist night
 };
 
 // Your weatherIconMap and weatherIconAnimationMap remain the same as you provided.

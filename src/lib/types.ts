@@ -36,7 +36,7 @@ export interface WeatherData {
     humidity: number;
     pressure: number;
   };
-  weather: { description: string }[];
+  weather: { description: string; icon?: string }[];
   wind: { speed: number; deg: number };
   clouds: { all: number };
   visibility: number;

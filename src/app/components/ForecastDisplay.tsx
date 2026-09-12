@@ -153,36 +153,74 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
             {(() => {
               const timezone = weatherData?.timezone || 'UTC';
               const { grouped, dateLabels } = groupForecastByDay(forecastData, timezone);
-              return Object.entries(grouped).map(([dateKey, items]) => (
-                <div key={dateKey} className="flex flex-col">
-                  <h3 className="text-lg font-medium mb-2">{dateLabels[dateKey]}</h3>
-                  <div className="overflow-x-auto scroll-smooth">
-                    <div className="flex flex-row gap-2">
-                      {items.map((item, index) => (
-                        <div
-                          key={index}
-                          className={`flex flex-col items-center min-w-[100px] p-1 border-r-[0.5px] last:border-r-0 ${
-                            darkMode ? 'border-gray-600' : 'border-gray-300'
-                          }`}
-                        >
-                          <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone)}</span>
-                          <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                            <i
-                              className={`wi ${weatherIconMap[item.weather[0].icon]} text-3xl ${
-                                weatherIconColorMap[item.weather[0].icon]
-                              } ${weatherIconAnimationMap[item.weather[0].icon] || ''}`}
-                            />
-                          </div>
-                          <span className="text-xs font-medium mb-1">{item.main.temp.toFixed(1)}°C</span>
-                          <span className="text-[10px] text-center capitalize">
-                            {tWeather(item.weather[0].description)}
+              return Object.entries(grouped).map(([dateKey, items]) => {
+                const temps = items.map((i) => i.main.temp);
+                const minTemp = Math.min(...temps);
+                const maxTemp = Math.max(...temps);
+
+                // Find the best representative weather icon for the day:
+                // Prioritize midday hours (11h-16h) if available, otherwise median item
+                const middayItem =
+                  items.find((i) => {
+                    const localHours = new Date(
+                      new Date(i.dt * 1000).toLocaleString('en-US', { timeZone: timezone })
+                    ).getHours();
+                    return localHours >= 11 && localHours <= 16;
+                  }) || items[Math.floor(items.length / 2)] || items[0];
+
+                const dayIcon = middayItem?.weather[0]?.icon || '01d';
+                const dayDescription = middayItem?.weather[0]?.description || '';
+
+                return (
+                  <div key={dateKey} className="flex flex-col">
+                    <div className="flex items-center justify-between flex-wrap gap-2 mb-2 pb-1 border-b border-gray-200/80 dark:border-gray-700/60">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{dateLabels[dateKey]}</h3>
+                      <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-white/80 dark:bg-gray-800 shadow-xs border border-gray-200/60 dark:border-gray-700/60">
+                        <div className="flex items-center gap-1.5" title={tWeather(dayDescription)}>
+                          <i
+                            className={`wi ${weatherIconMap[dayIcon] || 'wi-day-sunny'} text-xl ${
+                              weatherIconColorMap[dayIcon] || 'text-amber-500'
+                            }`}
+                          />
+                          <span className="capitalize text-xs text-gray-600 dark:text-gray-300 hidden sm:inline font-normal">
+                            {tWeather(dayDescription)}
                           </span>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-1 text-sm font-semibold tracking-tight">
+                          <span className="text-blue-600 dark:text-blue-400">{minTemp.toFixed(1)}°C</span>
+                          <span className="text-gray-300 dark:text-gray-600 font-light">/</span>
+                          <span className="text-red-500 dark:text-red-400">{maxTemp.toFixed(1)}°C</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto scroll-smooth">
+                      <div className="flex flex-row gap-2">
+                        {items.map((item, index) => (
+                          <div
+                            key={index}
+                            className={`flex flex-col items-center min-w-[100px] p-1 border-r-[0.5px] last:border-r-0 ${
+                              darkMode ? 'border-gray-600' : 'border-gray-300'
+                            }`}
+                          >
+                            <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone)}</span>
+                            <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                              <i
+                                className={`wi ${weatherIconMap[item.weather[0].icon]} text-3xl ${
+                                  weatherIconColorMap[item.weather[0].icon]
+                                } ${weatherIconAnimationMap[item.weather[0].icon] || ''}`}
+                              />
+                            </div>
+                            <span className="text-xs font-medium mb-1">{item.main.temp.toFixed(1)}°C</span>
+                            <span className="text-[10px] text-center capitalize">
+                              {tWeather(item.weather[0].description)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ));
+                );
+              });
             })()}
           </div>
         </div>

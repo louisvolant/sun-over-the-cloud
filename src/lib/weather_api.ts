@@ -47,7 +47,10 @@ export const getWeatherAndSnow = async (latitude: number, longitude: number) => 
         humidity: currentData.humidity,
         pressure: currentData.pressure,
       },
-      weather: [{ description: currentData.weather[0].description }],
+      weather: [{
+        description: currentData.weather[0].description,
+        icon: currentData.weather[0].icon,
+      }],
       wind: { speed: currentData.wind_speed, deg: currentData.wind_deg },
       clouds: { all: currentData.clouds },
       visibility: currentData.visibility,

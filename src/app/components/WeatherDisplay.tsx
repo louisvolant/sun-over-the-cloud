@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import {
   Sun, Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake
 } from 'lucide-react';
+import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
 
 interface WeatherDisplayProps {
   weatherData: WeatherData | null;
@@ -76,25 +77,39 @@ export default function WeatherDisplay({ weatherData, rainFallsData, snowDepthDa
   console.debug('weatherData.timezone_offset:', weatherData.timezone_offset);
   console.debug('language:', language);
 
+  const iconCode = weatherData.weather[0]?.icon || '01d';
+
   return (
-    <div className={`p-4 rounded mb-4 ${darkMode ? 'bg-blue-900' : 'bg-blue-100'} text-gray-900 dark:text-gray-200`}>
+    <div className={`p-5 rounded-xl mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 text-gray-900'} shadow-sm`}>
       <h2 className="text-xl font-semibold mb-3 flex items-center">
         {weatherData.country && (
           <span className={`fi fi-${weatherData.country.toLowerCase()} mr-2 rounded`}></span>
         )}
-        {weatherData.name} <span className="text-sm ml-1">({formatCurrentTime(timezone)})</span>
+        {weatherData.name} <span className="text-sm ml-1 font-normal opacity-75">({formatCurrentTime(timezone)})</span>
       </h2>
 
-      {/* Temperature */}
-      <div className="flex items-center text-lg mb-2 gap-2">
-        <Sun className="w-5 h-5" />
-        {weatherData.main.temp.toFixed(1)}{t('celsius_short')}
-        <span className="text-sm ml-2">({weatherData.main.feels_like.toFixed(1)}{t('celsius_short')} {t('feels_like')})</span>
-      </div>
-
-      <div className="capitalize mb-3 flex items-center gap-2">
-        <Cloud className="w-5 h-5" />
-        {tWeather(weatherData.weather[0].description)}
+      {/* Main Temperature & Weather Icon */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className={`p-3 rounded-2xl flex items-center justify-center shadow-xs ${darkMode ? 'bg-gray-900/80 border border-gray-700' : 'bg-white border border-blue-200/70'}`}>
+          <i
+            className={`wi ${weatherIconMap[iconCode] || 'wi-day-sunny'} text-4xl ${
+              weatherIconColorMap[iconCode] || 'text-amber-500'
+            } ${weatherIconAnimationMap[iconCode] || ''}`}
+          />
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight">
+              {weatherData.main.temp.toFixed(1)}{t('celsius_short')}
+            </span>
+            <span className="text-sm opacity-80">
+              ({weatherData.main.feels_like.toFixed(1)}{t('celsius_short')} {t('feels_like')})
+            </span>
+          </div>
+          <div className="capitalize text-sm font-medium opacity-90 mt-0.5">
+            {tWeather(weatherData.weather[0]?.description || '')}
+          </div>
+        </div>
       </div>
 
       {/* Conditions */}

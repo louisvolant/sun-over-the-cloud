@@ -128,15 +128,38 @@ export default function GraphsDisplay({
     </div>
   );
 
+  const tooltipContentStyle = useMemo(() => ({
+    backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+    borderColor: darkMode ? '#374151' : '#e5e7eb',
+    color: darkMode ? '#f9fafb' : '#111827',
+    borderRadius: '0.5rem',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2)',
+    padding: '8px 12px',
+  }), [darkMode]);
+
+  const tooltipLabelStyle = useMemo(() => ({
+    color: darkMode ? '#f3f4f6' : '#111827',
+    fontWeight: 600,
+    marginBottom: '4px',
+  }), [darkMode]);
+
+  const tooltipItemStyle = useMemo(() => ({
+    color: darkMode ? '#e5e7eb' : '#374151',
+    fontWeight: 500,
+  }), [darkMode]);
+
+  const axisStroke = darkMode ? '#9ca3af' : '#6b7280';
+  const gridStroke = darkMode ? '#374151' : '#e5e7eb';
+
   const renderPrecipitationChart = () => (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={precipitationData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="date" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Bar dataKey="precipitation" fill={darkMode ? "#a3bffa" : "#8884d8"} name={t('precipitation')} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+        <XAxis dataKey="date" stroke={axisStroke} tick={{ fill: axisStroke }} />
+        <YAxis stroke={axisStroke} tick={{ fill: axisStroke }} />
+        <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+        <Legend wrapperStyle={{ color: darkMode ? '#d1d5db' : '#374151' }} />
+        <Bar dataKey="precipitation" fill={darkMode ? "#60a5fa" : "#3b82f6"} name={t('precipitation')} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -144,12 +167,12 @@ export default function GraphsDisplay({
   const renderHumidityChart = () => (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={precipitationData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="date" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="humidity" stroke={darkMode ? "#a3bffa" : "#82ca9d"} name={t('humidity')} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+        <XAxis dataKey="date" stroke={axisStroke} tick={{ fill: axisStroke }} />
+        <YAxis stroke={axisStroke} tick={{ fill: axisStroke }} />
+        <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+        <Legend wrapperStyle={{ color: darkMode ? '#d1d5db' : '#374151' }} />
+        <Line type="monotone" dataKey="humidity" stroke={darkMode ? "#34d399" : "#10b981"} strokeWidth={2} name={t('humidity')} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -157,12 +180,12 @@ export default function GraphsDisplay({
   const renderCloudCoverChart = () => (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={precipitationData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="date" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="cloudCover" stroke={darkMode ? "#a3bffa" : "#ff7300"} name={t('cloud_cover')} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+        <XAxis dataKey="date" stroke={axisStroke} tick={{ fill: axisStroke }} />
+        <YAxis stroke={axisStroke} tick={{ fill: axisStroke }} />
+        <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+        <Legend wrapperStyle={{ color: darkMode ? '#d1d5db' : '#374151' }} />
+        <Line type="monotone" dataKey="cloudCover" stroke={darkMode ? "#fb923c" : "#f97316"} strokeWidth={2} name={t('cloud_cover')} />
       </LineChart>
     </ResponsiveContainer>
   );
