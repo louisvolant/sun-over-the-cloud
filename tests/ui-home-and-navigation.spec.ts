@@ -193,5 +193,18 @@ test.describe('UI Navigation and Interactions', () => {
     expect(idbResult.success).toBe(true);
     expect(idbResult.hasStores).toBe(true);
   });
+
+  test('Footer displays updated Whois URL and MyFilmList label', async ({ page }) => {
+    await page.goto('/');
+
+    const whoisLink = page.locator('footer a', { hasText: 'Whois' });
+    await expect(whoisLink).toBeVisible();
+    await expect(whoisLink).toHaveAttribute('href', 'https://whois.louisvolant.com');
+
+    const myFilmListLink = page.locator('footer a', { hasText: 'MyFilmList' });
+    await expect(myFilmListLink).toBeVisible();
+    await expect(myFilmListLink).toHaveAttribute('href', 'https://www.myfilmlist.net');
+  });
 });
+
 
