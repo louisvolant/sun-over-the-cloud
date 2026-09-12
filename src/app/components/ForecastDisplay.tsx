@@ -69,9 +69,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
       const dayNameRaw = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { weekday: 'long' });
       const dayName = dayNameRaw ? dayNameRaw.charAt(0).toUpperCase() + dayNameRaw.slice(1) : '';
       const day = date.getDate();
-      const monthRaw = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { month: 'long' });
-      const month = monthRaw ? monthRaw.charAt(0).toUpperCase() + monthRaw.slice(1) : '';
-      return `${dayName} ${day}${getOrdinalSuffix(day)} ${month}`;
+      return `${dayName} ${day}${getOrdinalSuffix(day)}`;
     }
   };
 
@@ -189,20 +187,20 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                   {/* Clickable Header Row */}
                   <div
                     onClick={() => toggleDay(dateKey, index)}
-                    className="flex items-center justify-between flex-wrap gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer select-none transition-colors"
+                    className="flex items-center justify-between flex-nowrap gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer select-none transition-colors"
                     role="button"
                     aria-expanded={expanded}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400 dark:text-gray-500">
+                    <div className="flex items-center gap-2 min-w-0 truncate">
+                      <span className="text-gray-400 dark:text-gray-500 shrink-0">
                         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </span>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {dateLabels[dateKey]}
                       </h3>
                     </div>
 
-                    <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-gray-100/90 dark:bg-gray-700/80 shadow-2xs border border-gray-200/60 dark:border-gray-600/60">
+                    <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-gray-100/90 dark:bg-gray-700/80 shadow-2xs border border-gray-200/60 dark:border-gray-600/60 shrink-0">
                       <div className="flex items-center gap-1.5" title={tWeather(dayDescription)}>
                         <i
                           className={`wi ${weatherIconMap[dayIcon] || 'wi-day-sunny'} text-xl ${

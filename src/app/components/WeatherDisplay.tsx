@@ -88,7 +88,7 @@ export default function WeatherDisplay({ weatherData, rainFallsData, snowDepthDa
         {/* Left Column: Primary Weather (max 3 lines) */}
         <div className="flex-1 min-w-0">
           {/* Line 1: Location & Time */}
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center mb-1">
             <h2 className="text-lg sm:text-xl font-semibold flex items-center truncate">
               {weatherData.country && (
                 <span className={`fi fi-${weatherData.country.toLowerCase()} mr-2 rounded shrink-0`}></span>
@@ -96,16 +96,6 @@ export default function WeatherDisplay({ weatherData, rainFallsData, snowDepthDa
               <span className="truncate">{weatherData.name}</span>
               <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0">({formatCurrentTime(timezone)})</span>
             </h2>
-            {/* Mobile expand button */}
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="md:hidden flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-100/70 dark:bg-gray-700 px-2 py-1 rounded-full shrink-0"
-              aria-expanded={isExpanded}
-            >
-              <span>{isExpanded ? t('less_details') : t('more_details')}</span>
-              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
           </div>
 
           {/* Line 2: Weather Icon & Temperature */}
@@ -127,9 +117,21 @@ export default function WeatherDisplay({ weatherData, rainFallsData, snowDepthDa
             </div>
           </div>
 
-          {/* Line 3: Weather Description */}
-          <div className="capitalize text-sm font-medium opacity-90 truncate">
-            {tWeather(weatherData.weather[0]?.description || '')}
+          {/* Line 3: Weather Description & Mobile Expand button */}
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <div className="capitalize text-sm font-medium opacity-90 truncate">
+              {tWeather(weatherData.weather[0]?.description || '')}
+            </div>
+            {/* Mobile expand button */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="md:hidden flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-100/70 dark:bg-gray-700/80 px-2 py-0.5 rounded-full shrink-0"
+              aria-expanded={isExpanded}
+            >
+              <span>{isExpanded ? t('less_details') : t('more_details')}</span>
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
 
