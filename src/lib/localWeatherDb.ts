@@ -211,12 +211,31 @@ export async function saveLocalWeather(
     try {
       const tx = db.transaction(WEATHER_STORE, 'readwrite');
       const store = tx.objectStore(WEATHER_STORE);
-      const record: LocalCachedWeather = {
-        key,
-        ...payload,
-        savedAt: Date.now(),
+      const getReq = store.get(key);
+
+      getReq.onsuccess = () => {
+        const existing = getReq.result as LocalCachedWeather | undefined;
+        const record: LocalCachedWeather = {
+          key,
+          location: payload.location,
+          weather: payload.weather !== null ? payload.weather : (existing?.weather || null),
+          rainFalls: payload.rainFalls !== null ? payload.rainFalls : (existing?.rainFalls ?? null),
+          snowDepth: payload.snowDepth !== null ? payload.snowDepth : (existing?.snowDepth ?? null),
+          forecast: payload.forecast !== null ? payload.forecast : (existing?.forecast || null),
+          savedAt: Date.now(),
+        };
+        store.put(record);
       };
-      store.put(record);
+
+      getReq.onerror = () => {
+        const record: LocalCachedWeather = {
+          key,
+          ...payload,
+          savedAt: Date.now(),
+        };
+        store.put(record);
+      };
+
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
       tx.onabort = () => resolve();

@@ -73,6 +73,7 @@ export default function FavoriteCardComponent({
   const [graphsError, setGraphsError] = useState<string | null>(null);
 
   const hasFetchedForecastRef = useRef(false);
+  const forecastDataRef = useRef<ForecastData | null>(null);
   const coordKey = getCoordKey(favorite.latitude, favorite.longitude);
 
   // 1. Check local IndexedDB immediately on mount for instantaneous rendering
@@ -91,44 +92,62 @@ export default function FavoriteCardComponent({
         }
         if (adjusted.forecast) {
           setForecastData(adjusted.forecast);
+          forecastDataRef.current = adjusted.forecast;
         }
       })
       .catch((err) => {
         console.debug('Error reading favorite from local DB:', err);
       });
 
-    // Background fetch for fresh live weather
-    const fetchCurrentWeather = async () => {
+    // Background fetch for fresh live weather AND forecast in parallel
+    const fetchLiveWeatherAndForecast = async () => {
       try {
-        const { weather, rainFalls, snowDepth } = await getWeatherAndSnow(
-          favorite.latitude,
-          favorite.longitude
-        );
-        if (isMounted && weather) {
-          const wData = weather as WeatherData;
+        const [weatherRes, forecastRes] = await Promise.allSettled([
+          getWeatherAndSnow(favorite.latitude, favorite.longitude),
+          getForecast(favorite.latitude.toString(), favorite.longitude.toString()),
+        ]);
+
+        if (!isMounted) return;
+
+        let wData: WeatherData | null = null;
+        let rFalls: number | null = null;
+        let sDepth: number | null = null;
+        let fData: ForecastData | null = null;
+
+        if (weatherRes.status === 'fulfilled' && weatherRes.value?.weather) {
+          wData = weatherRes.value.weather as WeatherData;
           wData.name = favorite.location_name;
           wData.country = favorite.country_code;
+          rFalls = weatherRes.value.rainFalls;
+          sDepth = weatherRes.value.snowDepth;
           setWeatherData(wData);
-          setRainFallsData(rainFalls);
-          setSnowDepthData(snowDepth);
+          setRainFallsData(rFalls);
+          setSnowDepthData(sDepth);
           setIsLoadingWeather(false);
-
-          // Update IndexedDB
-          saveLocalWeather(coordKey, {
-            location: {
-              name: favorite.location_name,
-              country: favorite.country_code,
-              lat: favorite.latitude,
-              lon: favorite.longitude,
-            },
-            weather: wData,
-            rainFalls,
-            snowDepth,
-            forecast: forecastData,
-          }).catch((saveErr) => console.debug('Failed saving favorite to local DB:', saveErr));
         }
+
+        if (forecastRes.status === 'fulfilled' && forecastRes.value) {
+          fData = forecastRes.value;
+          setForecastData(fData);
+          forecastDataRef.current = fData;
+          hasFetchedForecastRef.current = true;
+        }
+
+        // Update IndexedDB with both live weather and forecast
+        saveLocalWeather(coordKey, {
+          location: {
+            name: favorite.location_name,
+            country: favorite.country_code,
+            lat: favorite.latitude,
+            lon: favorite.longitude,
+          },
+          weather: wData,
+          rainFalls: rFalls,
+          snowDepth: sDepth,
+          forecast: fData || forecastDataRef.current,
+        }).catch((saveErr) => console.debug('Failed saving favorite to local DB:', saveErr));
       } catch (err) {
-        console.error('Error fetching favorite current weather:', err);
+        console.error('Error fetching favorite data:', err);
       } finally {
         if (isMounted) {
           setIsLoadingWeather(false);
@@ -136,17 +155,16 @@ export default function FavoriteCardComponent({
       }
     };
 
-    fetchCurrentWeather();
+    fetchLiveWeatherAndForecast();
     return () => {
       isMounted = false;
     };
   }, [coordKey, favorite.latitude, favorite.longitude, favorite.location_name, favorite.country_code]);
 
-  // 2. Fetch forecast data when card is expanded (with local cache support)
+  // 2. Fallback fetch forecast data when card is expanded if not yet available
   const fetchForecast = useCallback(async () => {
-    if (hasFetchedForecastRef.current || isLoadingForecast) return;
+    if (forecastDataRef.current || hasFetchedForecastRef.current || isLoadingForecast) return;
     try {
-      // If we don't have forecast yet, show loading spinner
       if (!forecastData) {
         setIsLoadingForecast(true);
       }
@@ -156,6 +174,7 @@ export default function FavoriteCardComponent({
         favorite.longitude.toString()
       );
       setForecastData(data);
+      forecastDataRef.current = data;
       hasFetchedForecastRef.current = true;
 
       // Update local IndexedDB with fresh forecast
@@ -184,10 +203,10 @@ export default function FavoriteCardComponent({
   }, [favorite.latitude, favorite.longitude, isLoadingForecast, forecastData, weatherData, coordKey, rainFallsData, snowDepthData, favorite.location_name, favorite.country_code, t]);
 
   useEffect(() => {
-    if (isExpanded && !hasFetchedForecastRef.current) {
+    if (isExpanded && !forecastData && !hasFetchedForecastRef.current) {
       fetchForecast();
     }
-  }, [isExpanded, fetchForecast]);
+  }, [isExpanded, forecastData, fetchForecast]);
 
   const handleHeaderClick = () => {
     // When in organizing mode, avoid collapsing/expanding so reordering is smooth
