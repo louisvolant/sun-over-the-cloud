@@ -2,16 +2,14 @@
 const express = require('express');
 const router = express.Router();
 const {
-  fetchAndSaveCurrentWeather,
   fetchHistoricalWeather,
   fetchAndSaveDaySummary,
   fetchMonthSummary,
 } = require('../service/oneCallService');
+const { getCurrentWeather } = require('../service/metNorwayService');
 
-// /onecall endpoint
+// /onecall endpoint powered by MET Norway
 router.get('/onecall', async (req, res) => {
-  const param_units = 'metric';
-  const param_lang = 'en';
   const { lat, lon } = req.query;
   if (!lat || !lon) {
     return res.status(400).json({ error: "Latitude and Longitude parameters are required" });
@@ -19,12 +17,12 @@ router.get('/onecall', async (req, res) => {
 
   console.log(`Fetching /onecall for lat=${lat}, lon=${lon}`);
 
-  const result = await fetchAndSaveCurrentWeather(lat, lon, param_units, param_lang);
-  if (result.success) {
-    res.json(result.data);
-  } else {
-    console.error('API Error:', result.error);
-    res.status(500).json({ error: "Failed to fetch weather data from OpenWeatherMap" });
+  try {
+    const data = await getCurrentWeather(lat, lon);
+    res.json(data);
+  } catch (err) {
+    console.error('API Error:', err.message);
+    res.status(500).json({ error: "Failed to fetch weather data from MET Norway" });
   }
 });
 

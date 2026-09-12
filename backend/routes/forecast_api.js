@@ -1,12 +1,10 @@
-//routes/forecast_api.js
+// routes/forecast_api.js
 
 const express = require('express');
-const axios = require('axios');
 const router = express.Router();
-const FORECAST_API_V2 = "http://api.openweathermap.org/data/2.5/forecast";
-const API_KEY = process.env.OPENWEATHER_API_KEY;
+const { getForecast } = require('../service/metNorwayService');
 
-// Route for forecast
+// Route for forecast powered by MET Norway
 router.get('/forecast', async (req, res) => {
     const { lat, lon } = req.query;
     if (!lat || !lon) {
@@ -14,18 +12,10 @@ router.get('/forecast', async (req, res) => {
     }
 
     try {
-        const response = await axios.get(FORECAST_API_V2, {
-            params: {
-                lat: lat,
-                lon: lon,
-                appid: API_KEY,
-                units: 'metric',
-                lang: 'en'
-            }
-        });
-        res.json(response.data);
+        const data = await getForecast(lat, lon);
+        res.json(data);
     } catch (error) {
-        console.error("Error fetching forecast data:", error.response ? error.response.data : error.message);
+        console.error("Error fetching forecast data from MET Norway:", error.message);
         res.status(500).send({ error: "Failed to fetch forecast data" });
     }
 });
