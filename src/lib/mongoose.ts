@@ -18,6 +18,10 @@ if (!global.mongooseCache) {
 }
 
 export async function connectToDatabase(): Promise<typeof mongoose> {
+  if (!process.env.MONGODB_ATLAS_CLUSTER_URL || !process.env.MONGODB_ATLAS_USERNAME) {
+    throw new Error('MongoDB Atlas environment variables are not configured');
+  }
+
   if (cached.conn) {
     return cached.conn;
   }

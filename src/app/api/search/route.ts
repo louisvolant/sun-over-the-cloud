@@ -15,13 +15,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'City parameter is required' }, { status: 400 });
   }
 
+  // Try checking cache if MongoDB is available
   try {
     await connectToDatabase();
     const existingData = await LocationSearchModel.findOne({ city, lang });
     if (existingData) {
       return NextResponse.json(existingData.data);
     }
+  } catch (dbErr: any) {
+    // If DB is unreachable or not configured, proceed directly to live API fetch
+    console.warn('MongoDB cache lookup skipped or failed in /api/search:', dbErr.message);
+  }
 
+  try {
     const response = await axios.get(OPEN_METEO_GEOCODING_API, {
       params: {
         name: city,
@@ -41,12 +47,17 @@ export async function GET(request: NextRequest) {
       location_name: item.admin1 ? `${item.name}, ${item.admin1}` : item.name,
     }));
 
-    const newDoc = new LocationSearchModel({
-      city,
-      lang,
-      data: formattedLocations,
-    });
-    await newDoc.save();
+    // Best-effort cache save
+    try {
+      const newDoc = new LocationSearchModel({
+        city,
+        lang,
+        data: formattedLocations,
+      });
+      await newDoc.save();
+    } catch {
+      // Ignore DB save errors when database is unavailable
+    }
 
     return NextResponse.json(formattedLocations);
   } catch (error: any) {

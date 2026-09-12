@@ -54,7 +54,7 @@ export async function GET() {
 
     return NextResponse.json(formattedFavorites);
   } catch (err: any) {
-    console.error('Error fetching cached favorites with aggregation:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.warn('Error fetching cached favorites (returning empty list):', err.message || err);
+    return NextResponse.json([]);
   }
 }
