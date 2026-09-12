@@ -1,12 +1,32 @@
-# Weather App
+# Sun Over The Cloud
 
-Ce projet est une application de permettant de visualiser la météo en courbes.
+A progressive weather web application designed for exploring live meteorological conditions, multi-day forecasts, and monthly climate history graphs.
+
+---
+
+## Features
+
+- **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway.
+- **Monthly Climate History Graphs**: Interactive bar and line charts for monthly precipitation, humidity, and cloud cover powered by Open-Meteo.
+- **Mobile-Optimized PWA Experience**:
+  - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-x pan-y`, and WebKit gesture suppression).
+  - **Single-Line Header**: Seamless horizontal navigation on mobile. When authenticated, the account action compresses into a symbol button (`Settings` gear on Home, `Home` icon on Account).
+  - **Mobile Bottom Bar**: Language selector and logout button positioned cleanly at the bottom of the page before the footer.
+- **Favorite Locations on Home**:
+  - When logged in, favorite locations are displayed as cards directly above the search bar.
+  - Collapsed view displays location name, country flag, current temperature, and weather icon/condition with a quick un-favorite action button.
+  - Clicking a favorite card smoothly expands it with lazy-loaded full-day and multi-day forecasts, while keeping monthly graphs accessible on-demand via a button.
+- **Interactive Search & Quick Add**:
+  - Autocomplete location search with geolocation fallback.
+  - Search results include an immediate "Add to favorites" toggle button.
+- **Internationalization (i18n)**: Full support for English, French, and Spanish with persistent user preferences.
+- **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, session cookies, and account management.
 
 ---
 
 ## Configuration
 
-Créez un fichier `.env.local` à la racine contenant les variables d'environnement nécessaires (MongoDB Atlas, session, etc.) :
+Create a `.env.local` file in the project root with the required environment variables:
 
 ```env
 # MongoDB Atlas
@@ -19,31 +39,39 @@ MONGODB_ATLAS_APP_NAME=...
 # Session Cookie Secret
 SESSION_COOKIE_KEY=...
 
-# Optionnel : identifiant pour MET Norway (respect des conditions d'utilisation)
+# MET Norway User-Agent (Terms of Service requirement)
 MET_NO_USER_AGENT=SunOverTheCloud/1.0 contact@yourdomain.com
 ```
 
-## Installation
+---
+
+## Getting Started
+
+### Installation
 
 ```bash
 npm install
 ```
 
-## Lancement en développement
+### Development Server
 
 ```bash
 npm run dev
 ```
 
-### Before pushing, confirm no problem with compilation
+Open [http://localhost:3000](http://localhost:3000) with your browser.
+
+### Quality Verification
+
+Before committing or pushing changes:
 
 ```bash
+# Build production bundle
 npm run build
-# then
-npx tsc --noEmit
-# or
-node --no-warnings node_modules/.bin/tsc --noEmit
-# or 
-npx --no-warnings tsc --noEmit
 
+# TypeScript validation
+npx tsc --noEmit
+
+# End-to-end tests
+npx playwright test
 ```
