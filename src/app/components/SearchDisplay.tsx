@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { search, getDistance } from '@/lib/weather_api';
 import { Location } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 
 interface SearchDisplayProps {
   city: string;
@@ -28,7 +28,62 @@ export default function SearchDisplay({
 }: SearchDisplayProps) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [noResults, setNoResults] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const { t } = useLanguage();
+
+  const handleUseMyLocation = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      setError(t('unexpected_error'));
+      return;
+    }
+
+    setIsLocating(true);
+    setError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          let cityName = t('current_location');
+          let countryCode = '';
+
+          try {
+            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=fr`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.city || data.locality) {
+                cityName = data.city || data.locality;
+              }
+              if (data.countryCode) {
+                countryCode = data.countryCode;
+              }
+            }
+          } catch (e) {
+            console.debug('Reverse geocode failed:', e);
+          }
+
+          onLocationSelect({
+            name: cityName,
+            lat,
+            lon,
+            country: countryCode,
+            location_name: cityName,
+          });
+          setCity('');
+        } catch (err: any) {
+          setError(err.message || t('failed_to_fetch_locations'));
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (geoErr) => {
+        setIsLocating(false);
+        console.debug('Geolocation denied or failed:', geoErr.message);
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }, [onLocationSelect, setCity, setError, t]);
 
   // Memoized search function
   const performSearch = useCallback(async () => {
@@ -127,15 +182,31 @@ export default function SearchDisplay({
   return (
     <div>
       {/* Input and button container */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
-        <input
-          type="text"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t('search_placeholder')}
-          className="flex-grow p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-        />
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-grow flex items-center">
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t('search_placeholder')}
+            className="w-full p-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          />
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            disabled={isLocating || isSearching}
+            title={t('use_my_location')}
+            className="absolute right-2 p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-md transition-colors disabled:opacity-50"
+            aria-label={t('use_my_location')}
+          >
+            {isLocating ? (
+              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+            ) : (
+              <MapPin className="w-5 h-5" />
+            )}
+          </button>
+        </div>
         <button
           onClick={performSearch}
           disabled={isSearching || !city.trim()}

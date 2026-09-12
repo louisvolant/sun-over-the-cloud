@@ -1,11 +1,12 @@
 // src/components/ForecastDisplay.tsx
 'use client';
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { ForecastData, WeatherData } from '@/lib/types';
 import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/context/LanguageContext';
 import { getForecast } from '@/lib/weather_api';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface ForecastDisplayProps {
   weatherData: WeatherData | null;
@@ -127,6 +128,24 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
     return { grouped, dateLabels };
   };
 
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+
+  const isDayExpanded = (dateKey: string, index: number) => {
+    if (expandedDays[dateKey] !== undefined) {
+      return expandedDays[dateKey];
+    }
+    // Only current/first day is expanded by default
+    return index === 0;
+  };
+
+  const toggleDay = (dateKey: string, index: number) => {
+    const currentState = isDayExpanded(dateKey, index);
+    setExpandedDays((prev) => ({
+      ...prev,
+      [dateKey]: !currentState,
+    }));
+  };
+
   useEffect(() => {
     console.debug('useEffect triggered: weatherData=', !!weatherData, 'forecastData=', !!forecastData);
     if (weatherData && !forecastData && !isFetchingRef.current) {
@@ -134,70 +153,79 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
     }
   }, [weatherData, forecastData, handleShowForecast]);
 
+  if (!forecastData) return null;
+
   return (
     <div className="mb-4">
-      <button
-        onClick={handleShowForecast}
-        className={`w-full p-2 mb-4 bg-green-500 text-white rounded hover:bg-green-700 dark:bg-green-600 dark:hover:bg-blue-500 ${
-          !weatherData ? 'opacity-75 cursor-not-allowed' : ''
-        }`}
-        disabled={!weatherData}
-      >
-        {t('weather_forecast_button')}
-      </button>
+      <div className={`p-4 sm:p-6 rounded-xl shadow-xs mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-gray-200/80'} text-gray-950 dark:text-gray-100`}>
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4">{t('weather_forecast_title')}</h2>
+        <div className="flex flex-col gap-3">
+          {(() => {
+            const timezone = weatherData?.timezone || 'UTC';
+            const { grouped, dateLabels } = groupForecastByDay(forecastData, timezone);
+            return Object.entries(grouped).map(([dateKey, items], index) => {
+              const temps = items.map((i) => i.main.temp);
+              const minTemp = Math.min(...temps);
+              const maxTemp = Math.max(...temps);
+              const expanded = isDayExpanded(dateKey, index);
 
-      {forecastData && (
-        <div className={`p-6 rounded-lg shadow-md mb-4 ${darkMode ? 'bg-gray-900' : 'bg-green-50'} text-gray-950 dark:text-gray-100`}>
-          <h2 className="text-2xl font-semibold mb-3">{t('weather_forecast_title')}</h2>
-          <div className="flex flex-col gap-6">
-            {(() => {
-              const timezone = weatherData?.timezone || 'UTC';
-              const { grouped, dateLabels } = groupForecastByDay(forecastData, timezone);
-              return Object.entries(grouped).map(([dateKey, items]) => {
-                const temps = items.map((i) => i.main.temp);
-                const minTemp = Math.min(...temps);
-                const maxTemp = Math.max(...temps);
+              // Find the best representative weather icon for the day:
+              // Prioritize midday hours (11h-16h) if available, otherwise median item
+              const middayItem =
+                items.find((i) => {
+                  const localHours = new Date(
+                    new Date(i.dt * 1000).toLocaleString('en-US', { timeZone: timezone })
+                  ).getHours();
+                  return localHours >= 11 && localHours <= 16;
+                }) || items[Math.floor(items.length / 2)] || items[0];
 
-                // Find the best representative weather icon for the day:
-                // Prioritize midday hours (11h-16h) if available, otherwise median item
-                const middayItem =
-                  items.find((i) => {
-                    const localHours = new Date(
-                      new Date(i.dt * 1000).toLocaleString('en-US', { timeZone: timezone })
-                    ).getHours();
-                    return localHours >= 11 && localHours <= 16;
-                  }) || items[Math.floor(items.length / 2)] || items[0];
+              const dayIcon = middayItem?.weather[0]?.icon || '01d';
+              const dayDescription = middayItem?.weather[0]?.description || '';
 
-                const dayIcon = middayItem?.weather[0]?.icon || '01d';
-                const dayDescription = middayItem?.weather[0]?.description || '';
+              return (
+                <div key={dateKey} className="flex flex-col border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 pb-3 last:pb-0">
+                  {/* Clickable Header Row */}
+                  <div
+                    onClick={() => toggleDay(dateKey, index)}
+                    className="flex items-center justify-between flex-wrap gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer select-none transition-colors"
+                    role="button"
+                    aria-expanded={expanded}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 dark:text-gray-500">
+                        {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </span>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        {dateLabels[dateKey]}
+                      </h3>
+                    </div>
 
-                return (
-                  <div key={dateKey} className="flex flex-col">
-                    <div className="flex items-center justify-between flex-wrap gap-2 mb-2 pb-1 border-b border-gray-200/80 dark:border-gray-700/60">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{dateLabels[dateKey]}</h3>
-                      <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-white/80 dark:bg-gray-800 shadow-xs border border-gray-200/60 dark:border-gray-700/60">
-                        <div className="flex items-center gap-1.5" title={tWeather(dayDescription)}>
-                          <i
-                            className={`wi ${weatherIconMap[dayIcon] || 'wi-day-sunny'} text-xl ${
-                              weatherIconColorMap[dayIcon] || 'text-amber-500'
-                            }`}
-                          />
-                          <span className="capitalize text-xs text-gray-600 dark:text-gray-300 hidden sm:inline font-normal">
-                            {tWeather(dayDescription)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm font-semibold tracking-tight">
-                          <span className="text-blue-600 dark:text-blue-400">{minTemp.toFixed(1)}°C</span>
-                          <span className="text-gray-300 dark:text-gray-600 font-light">/</span>
-                          <span className="text-red-500 dark:text-red-400">{maxTemp.toFixed(1)}°C</span>
-                        </div>
+                    <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-gray-100/90 dark:bg-gray-700/80 shadow-2xs border border-gray-200/60 dark:border-gray-600/60">
+                      <div className="flex items-center gap-1.5" title={tWeather(dayDescription)}>
+                        <i
+                          className={`wi ${weatherIconMap[dayIcon] || 'wi-day-sunny'} text-xl ${
+                            weatherIconColorMap[dayIcon] || 'text-amber-500'
+                          }`}
+                        />
+                        <span className="capitalize text-xs text-gray-600 dark:text-gray-300 hidden sm:inline font-normal">
+                          {tWeather(dayDescription)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm font-semibold tracking-tight">
+                        <span className="text-blue-600 dark:text-blue-400">{minTemp.toFixed(1)}°C</span>
+                        <span className="text-gray-300 dark:text-gray-500 font-light">/</span>
+                        <span className="text-red-500 dark:text-red-400">{maxTemp.toFixed(1)}°C</span>
                       </div>
                     </div>
-                    <div className="overflow-x-auto scroll-smooth">
+                  </div>
+
+                  {/* Hourly Forecast (expanded only) */}
+                  {expanded && (
+                    <div className="overflow-x-auto scroll-smooth pt-3 pb-1">
                       <div className="flex flex-row gap-2">
-                        {items.map((item, index) => (
+                        {items.map((item, itemIdx) => (
                           <div
-                            key={index}
+                            key={itemIdx}
                             className={`flex flex-col items-center min-w-[100px] p-1 border-r-[0.5px] last:border-r-0 ${
                               darkMode ? 'border-gray-600' : 'border-gray-300'
                             }`}
@@ -218,13 +246,13 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                         ))}
                       </div>
                     </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
-      )}
+      </div>
     </div>
   );
 }

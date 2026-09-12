@@ -47,13 +47,7 @@ test.describe('UI Navigation and Interactions', () => {
     const weatherCard = page.locator('text=°C').first();
     await expect(weatherCard).toBeVisible({ timeout: 20000 });
 
-    // Open the 5-day forecast
-    const forecastButton = page.locator('button', { hasText: /forecast|prévision/i });
-    if (await forecastButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await forecastButton.click();
-    }
-
-    // Verify daily summary headers with min/max temp slash divider
+    // 5-day forecast is automatically rendered with daily summary headers
     const daySummaryDivider = page.locator('text=/').first();
     await expect(daySummaryDivider).toBeVisible({ timeout: 15000 });
   });

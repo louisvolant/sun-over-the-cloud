@@ -11,6 +11,7 @@ import SearchDisplay from './components/SearchDisplay';
 import { useLanguage } from '@/context/LanguageContext';
 
 const LOCAL_STORAGE_KEY = 'cachedFavorites';
+const LAST_LOCATION_KEY = 'lastSelectedLocation';
 
 export default function Home() {
   const [city, setCity] = useState('');
@@ -26,24 +27,6 @@ export default function Home() {
   const [cachedFavorites, setCachedFavorites] = useState<CachedFavoriteLocation[]>([]);
 
   const { t } = useLanguage();
-
-  useEffect(() => {
-    const storedFavorites = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (storedFavorites) {
-      setCachedFavorites(JSON.parse(storedFavorites));
-    }
-
-    const loadCachedFavorites = async () => {
-      try {
-        const favorites = await fetchCachedFavorites();
-        setCachedFavorites(favorites);
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(favorites));
-      } catch (error) {
-        console.error('Error fetching cached favorites:', error);
-      }
-    };
-    loadCachedFavorites();
-  }, []);
 
   const handleLocationSelect = useCallback(async (location: Partial<Location>) => {
     try {
@@ -65,6 +48,19 @@ export default function Home() {
         setWeatherData(weatherDataToSet);
         setRainFallsData(rainFalls);
         setSnowDepthData(snowDepth);
+
+        // Save last location to localStorage
+        try {
+          localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify({
+            name: weatherDataToSet.name,
+            country: location.country,
+            lat: location.lat,
+            lon: location.lon,
+            location_name: weatherDataToSet.name,
+          }));
+        } catch (e) {
+          console.debug('Failed to save location to localStorage:', e);
+        }
       } else {
         setError(t('failed_to_fetch_weather_data'));
       }
@@ -75,6 +71,77 @@ export default function Home() {
       setIsSearching(false);
     }
   }, [t, setIsSearching]);
+
+  useEffect(() => {
+    const storedFavorites = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (storedFavorites) {
+      setCachedFavorites(JSON.parse(storedFavorites));
+    }
+
+    const loadCachedFavorites = async () => {
+      try {
+        const favorites = await fetchCachedFavorites();
+        setCachedFavorites(favorites);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(favorites));
+      } catch (error) {
+        console.error('Error fetching cached favorites:', error);
+      }
+    };
+    loadCachedFavorites();
+
+    // 1. Try restoring last selected location from localStorage
+    const savedLocation = localStorage.getItem(LAST_LOCATION_KEY);
+    if (savedLocation) {
+      try {
+        const parsed = JSON.parse(savedLocation);
+        if (parsed.lat && parsed.lon) {
+          handleLocationSelect(parsed);
+          return;
+        }
+      } catch (e) {
+        console.debug('Failed to parse saved location:', e);
+      }
+    }
+
+    // 2. If no saved location, request browser geolocation
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          let cityName = t('current_location');
+          let countryCode = '';
+
+          try {
+            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=fr`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.city || data.locality) {
+                cityName = data.city || data.locality;
+              }
+              if (data.countryCode) {
+                countryCode = data.countryCode;
+              }
+            }
+          } catch (e) {
+            console.debug('Reverse geocoding error:', e);
+          }
+
+          handleLocationSelect({
+            name: cityName,
+            lat,
+            lon,
+            country: countryCode,
+            location_name: cityName,
+          });
+        },
+        (geoError) => {
+          console.debug('Geolocation prompt dismissed or denied:', geoError.message);
+        },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    }
+  }, [handleLocationSelect, t]);
 
   return (
     <div className="flex justify-center items-start py-8">
