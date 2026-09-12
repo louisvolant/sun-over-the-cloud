@@ -5,7 +5,7 @@ import { FavoriteLocation } from '@/lib/types';
 console.debug('BACKEND_URL:', process.env.BACKEND_URL);
 
 const api = axios.create({
-  baseURL: process.env.BACKEND_URL,
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || '',
   withCredentials: true
 });
 
