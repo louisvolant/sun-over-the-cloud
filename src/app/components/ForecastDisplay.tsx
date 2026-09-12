@@ -66,9 +66,11 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
     } else if (forecastDate.getTime() === tomorrow.getTime()) {
       return t('tomorrow_forecast');
     } else {
-      const dayName = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { weekday: 'long' });
+      const dayNameRaw = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { weekday: 'long' });
+      const dayName = dayNameRaw ? dayNameRaw.charAt(0).toUpperCase() + dayNameRaw.slice(1) : '';
       const day = date.getDate();
-      const month = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { month: 'long' });
+      const monthRaw = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { month: 'long' });
+      const month = monthRaw ? monthRaw.charAt(0).toUpperCase() + monthRaw.slice(1) : '';
       return `${dayName} ${day}${getOrdinalSuffix(day)} ${month}`;
     }
   };

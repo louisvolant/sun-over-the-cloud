@@ -39,7 +39,8 @@ export default function GraphsDisplay({
   });
 
   const getDisplayMonth = useCallback((date: Date) => {
-    return date.toLocaleDateString(t('locale_code'), { year: 'numeric', month: 'long' });
+    const formatted = date.toLocaleDateString(t('locale_code'), { year: 'numeric', month: 'long' });
+    return formatted ? formatted.charAt(0).toUpperCase() + formatted.slice(1) : '';
   }, [t]);
 
   const fetchMonthData = useCallback(async () => {
@@ -64,18 +65,19 @@ export default function GraphsDisplay({
         month
       );
 
-      const transformedData: PrecipitationData[] = responses.map((response: DailySummaryApiResponse) => ({
-        date: new Date(response.date).toLocaleDateString(t('locale_code'), { day: 'numeric', month: 'short' }),
-        precipitation: response.precipitation?.total || 0,
-        humidity: response.humidity?.afternoon || 0,
-        cloudCover: response.cloud_cover?.afternoon || 0,
-      }));
+      const sortedResponses = [...responses].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
 
-      transformedData.sort((a: PrecipitationData, b: PrecipitationData) => {
-        // Ensure consistent date parsing for sorting (e.g., "6 Jun" -> "Jun 6")
-        const dateA = new Date(a.date.replace(/(\d+)\s(\w+)/, '$2 $1')).getTime();
-        const dateB = new Date(b.date.replace(/(\d+)\s(\w+)/, '$2 $1')).getTime();
-        return dateA - dateB;
+      const transformedData: PrecipitationData[] = sortedResponses.map((response: DailySummaryApiResponse) => {
+        const rawDate = new Date(response.date).toLocaleDateString(t('locale_code'), { day: 'numeric', month: 'short' });
+        const formattedDate = rawDate.replace(/\b([a-zA-ZÀ-ÿ])/g, (c) => c.toUpperCase());
+        return {
+          date: formattedDate,
+          precipitation: response.precipitation?.total || 0,
+          humidity: response.humidity?.afternoon || 0,
+          cloudCover: response.cloud_cover?.afternoon || 0,
+        };
       });
 
       setPrecipitationData(transformedData);
