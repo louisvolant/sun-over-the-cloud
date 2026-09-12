@@ -74,24 +74,6 @@ export const getForecast = async (latitude: string, longitude: string) => {
   return response.data;
 };
 
-export const getPrecipitation = async (latitude: string, longitude: string, date: string) => {
-  const url = `/api/precipitations?lat=${latitude}&lon=${longitude}&date=${date}`;
-  const response = await api.get(url);
-  return response.data;
-};
-
-export const getOneCallTimeMachine = async (latitude: string, longitude: string, date: string) => {
-  const url = `/api/onecalltimemachine?lat=${latitude}&lon=${longitude}&date=${date}`;
-  const response = await api.get(url);
-  return response.data;
-};
-
-export const getOneCallDaySummary = async (latitude: string, longitude: string, date: string) => {
-  const url = `/api/onecalldaysummary?lat=${latitude}&lon=${longitude}&date=${date}`;
-  const response = await api.get(url);
-  return response.data;
-};
-
 export const getOneCallMonthSummary = async (latitude: string, longitude: string, year: number, month: number) => {
   const url = `/api/onecallmonthsummary?lat=${latitude}&lon=${longitude}&year=${year}&month=${month}`;
   const response = await api.get(url);
