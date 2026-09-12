@@ -6,46 +6,32 @@ Ce projet est une application de permettant de visualiser la météo en courbes.
 
 ## Configuration
 
-### Backend
+Créez un fichier `.env.local` à la racine contenant les variables d'environnement nécessaires (MongoDB Atlas, session, etc.) :
 
-Dans le dossier `/backend`, vous pouvez configurer les variables d'environnement optionnelles dans `.env` :
+```env
+# MongoDB Atlas
+MONGODB_ATLAS_USERNAME=...
+MONGODB_ATLAS_PASSWORD=...
+MONGODB_ATLAS_CLUSTER_URL=...
+MONGODB_ATLAS_DB_NAME=...
+MONGODB_ATLAS_APP_NAME=...
 
-```
+# Session Cookie Secret
+SESSION_COOKIE_KEY=...
+
 # Optionnel : identifiant pour MET Norway (respect des conditions d'utilisation)
 MET_NO_USER_AGENT=SunOverTheCloud/1.0 contact@yourdomain.com
 ```
 
 ## Installation
-Pour installer les dépendances du projet, exécutez les commandes suivantes :
 
-
-### Backend
-```
-cd backend
+```bash
 npm install
 ```
 
-### Frontend
-```
-cd ../frontend
-npm install
-```
+## Lancement en développement
 
-## Lancement
-
-### Backend
-Pour lancer le backend, exécutez :
-
-```
-cd backend
-npm start
-```
-
-### Frontend
-Pour lancer le frontend, exécutez :
-
-```
-cd frontend
+```bash
 npm run dev
 ```
 
