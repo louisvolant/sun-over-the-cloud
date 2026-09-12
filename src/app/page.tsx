@@ -3,17 +3,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getWeatherAndSnow, fetchCachedFavorites } from "@/lib/weather_api";
-import { Location, WeatherData, PrecipitationData, ForecastData, CachedFavoriteLocation } from '@/lib/types';
+import { getFavorites, addFavorite, removeFavorite } from "@/lib/account_api";
+import { Location, WeatherData, PrecipitationData, ForecastData, CachedFavoriteLocation, FavoriteLocation } from '@/lib/types';
 import WeatherDisplay from './components/WeatherDisplay';
 import ForecastDisplay from './components/ForecastDisplay';
 import GraphsDisplay from './components/GraphsDisplay';
 import SearchDisplay from './components/SearchDisplay';
+import FavoriteCardComponent from './components/FavoriteCardComponent';
+import LoginModal from './components/LoginModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
+import { Star, Loader2 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'cachedFavorites';
 const LAST_LOCATION_KEY = 'lastSelectedLocation';
 
 export default function Home() {
+  const { isAuthenticated } = useAuth();
   const [city, setCity] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -25,6 +31,13 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [showGraphs, setShowGraphs] = useState(false);
   const [cachedFavorites, setCachedFavorites] = useState<CachedFavoriteLocation[]>([]);
+
+  // User favorites state (when authenticated)
+  const [userFavorites, setUserFavorites] = useState<FavoriteLocation[]>([]);
+  const [isLoadingUserFavorites, setIsLoadingUserFavorites] = useState(false);
+  const [expandedFavoriteId, setExpandedFavoriteId] = useState<string | null>(null);
+  const [isFavoriteActionLoading, setIsFavoriteActionLoading] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const { t } = useLanguage();
 
@@ -143,10 +156,118 @@ export default function Home() {
     }
   }, [handleLocationSelect, t]);
 
+  // Load user favorites when authenticated
+  const loadUserFavorites = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setIsLoadingUserFavorites(true);
+      const favs = await getFavorites();
+      setUserFavorites(favs);
+    } catch (err) {
+      console.error('Error fetching user favorites:', err);
+    } finally {
+      setIsLoadingUserFavorites(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadUserFavorites();
+    } else {
+      setUserFavorites([]);
+    }
+  }, [isAuthenticated, loadUserFavorites]);
+
+  const handleRemoveFavorite = useCallback(async (id: string) => {
+    try {
+      await removeFavorite(id);
+      setUserFavorites((prev) => prev.filter((f) => f._id !== id));
+      if (expandedFavoriteId === id) {
+        setExpandedFavoriteId(null);
+      }
+    } catch (err) {
+      console.error('Error removing favorite:', err);
+    }
+  }, [expandedFavoriteId]);
+
+  const handleToggleExpandFavorite = useCallback((id: string) => {
+    setExpandedFavoriteId((prev) => (prev === id ? null : id));
+  }, []);
+
+  const currentMatchingFavorite = weatherData
+    ? userFavorites.find(
+        (f) =>
+          f.location_name.toLowerCase() === weatherData.name.toLowerCase() ||
+          (Math.abs(f.latitude - weatherData.coord.lat) < 0.05 &&
+            Math.abs(f.longitude - weatherData.coord.lon) < 0.05)
+      )
+    : undefined;
+
+  const handleToggleSearchFavorite = useCallback(async () => {
+    if (!weatherData) return;
+    if (!isAuthenticated) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    try {
+      setIsFavoriteActionLoading(true);
+      if (currentMatchingFavorite) {
+        await removeFavorite(currentMatchingFavorite._id);
+        setUserFavorites((prev) => prev.filter((f) => f._id !== currentMatchingFavorite._id));
+      } else {
+        await addFavorite({
+          location_name: weatherData.name,
+          latitude: weatherData.coord.lat,
+          longitude: weatherData.coord.lon,
+          country_code: weatherData.country || '',
+        });
+        await loadUserFavorites();
+      }
+    } catch (err) {
+      console.error('Error toggling favorite from search:', err);
+    } finally {
+      setIsFavoriteActionLoading(false);
+    }
+  }, [weatherData, isAuthenticated, currentMatchingFavorite, loadUserFavorites]);
+
   return (
     <div className="flex justify-center items-start py-8">
       <div className="w-full max-w-4xl mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg mb-8">
-        {cachedFavorites.length > 0 && (
+        {/* User Favorite Locations Cards (when authenticated, placed above search) */}
+        {isAuthenticated && (
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+              <span>{t('my_favorite_locations_title')}</span>
+            </h3>
+
+            {isLoadingUserFavorites ? (
+              <div className="flex items-center justify-center py-6 text-gray-500 dark:text-gray-400">
+                <Loader2 className="w-5 h-5 animate-spin mr-2 text-blue-500" />
+                <span>{t('loading_favorites')}</span>
+              </div>
+            ) : userFavorites.length > 0 ? (
+              <div className="space-y-2 mb-2">
+                {userFavorites.map((fav) => (
+                  <FavoriteCardComponent
+                    key={fav._id}
+                    favorite={fav}
+                    isExpanded={expandedFavoriteId === fav._id}
+                    onToggleExpand={() => handleToggleExpandFavorite(fav._id)}
+                    onRemove={handleRemoveFavorite}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic mb-3">
+                {t('no_favorites_yet')}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Popular Locations (when not authenticated, placed above search) */}
+        {!isAuthenticated && cachedFavorites.length > 0 && (
           <div className="mb-4">
             <h3 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">{t('popular_locations')}</h3>
             <div className="flex flex-wrap gap-2">
@@ -176,7 +297,14 @@ export default function Home() {
           setError={setError}
         />
 
-        <WeatherDisplay weatherData={weatherData} rainFallsData={rainFallsData} snowDepthData={snowDepthData} />
+        <WeatherDisplay
+          weatherData={weatherData}
+          rainFallsData={rainFallsData}
+          snowDepthData={snowDepthData}
+          isFavorite={!!currentMatchingFavorite}
+          onToggleFavorite={handleToggleSearchFavorite}
+          isFavoriteLoading={isFavoriteActionLoading}
+        />
 
         {weatherData && (
           <ForecastDisplay
@@ -199,6 +327,8 @@ export default function Home() {
             setError={setError}
           />
         )}
+
+        <LoginModal isOpen={isLoginModalOpen} setIsOpen={setIsLoginModalOpen} />
       </div>
     </div>
   );

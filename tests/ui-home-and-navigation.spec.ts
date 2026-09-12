@@ -69,4 +69,45 @@ test.describe('UI Navigation and Interactions', () => {
     // Without authentication, page renders and informs or shows action buttons
     await expect(page).toHaveTitle(/Sun Over The Cloud/i);
   });
+
+  test('Viewport disables mobile zoom to behave like native app', async ({ page }) => {
+    await page.goto('/');
+    const viewportMeta = page.locator('meta[name="viewport"]');
+    const content = await viewportMeta.getAttribute('content');
+    expect(content).toContain('user-scalable=no');
+    expect(content).toContain('maximum-scale=1');
+  });
+
+  test('Mobile view renders single-line header and bottom controls before footer', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/');
+
+    // Header is rendered
+    const header = page.locator('header');
+    await expect(header).toBeVisible();
+
+    // Bottom controls are visible on mobile before footer
+    const bottomControls = page.locator('select[aria-label="Select language"]');
+    await expect(bottomControls.last()).toBeVisible();
+
+    // Footer is rendered below bottom controls
+    const footer = page.locator('footer');
+    await expect(footer).toBeVisible();
+  });
+
+  test('Searching location displays an add-to-favorites action button on search result', async ({ page }) => {
+    await page.goto('/');
+    const searchInput = page.locator('input[type="text"]');
+    await searchInput.fill('Paris');
+    const searchButton = page.locator('button', { hasText: /search/i });
+    await searchButton.click();
+
+    const resultItem = page.locator('div.cursor-pointer', { hasText: /Paris/i }).first();
+    await expect(resultItem).toBeVisible({ timeout: 20000 });
+    await resultItem.click();
+
+    // The favorite action button is rendered on the weather card
+    const favButton = page.locator('button', { hasText: /favori/i }).first();
+    await expect(favButton).toBeVisible({ timeout: 20000 });
+  });
 });

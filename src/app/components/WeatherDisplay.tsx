@@ -5,7 +5,7 @@ import { WeatherData } from '@/lib/types';
 import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/context/LanguageContext';
 import {
-  Sun, Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake, ChevronDown, ChevronUp
+  Sun, Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake, ChevronDown, ChevronUp, Star, Loader2
 } from 'lucide-react';
 import { useState } from 'react';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
@@ -14,9 +14,19 @@ interface WeatherDisplayProps {
   weatherData: WeatherData | null;
   rainFallsData: number | null;
   snowDepthData: number | null;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  isFavoriteLoading?: boolean;
 }
 
-export default function WeatherDisplay({ weatherData, rainFallsData, snowDepthData }: WeatherDisplayProps) {
+export default function WeatherDisplay({
+  weatherData,
+  rainFallsData,
+  snowDepthData,
+  isFavorite = false,
+  onToggleFavorite,
+  isFavoriteLoading = false,
+}: WeatherDisplayProps) {
   const { darkMode } = useTheme();
   const { t, tWeather, language } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -87,15 +97,36 @@ export default function WeatherDisplay({ weatherData, rainFallsData, snowDepthDa
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         {/* Left Column: Primary Weather (max 3 lines) */}
         <div className="flex-1 min-w-0">
-          {/* Line 1: Location & Time */}
-          <div className="flex items-center mb-1">
-            <h2 className="text-lg sm:text-xl font-semibold flex items-center truncate">
+          {/* Line 1: Location & Time and Favorite Action Button */}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <h2 className="text-lg sm:text-xl font-semibold flex items-center truncate min-w-0">
               {weatherData.country && (
                 <span className={`fi fi-${weatherData.country.toLowerCase()} mr-2 rounded shrink-0`}></span>
               )}
               <span className="truncate">{weatherData.name}</span>
               <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0">({formatCurrentTime(timezone)})</span>
             </h2>
+
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={onToggleFavorite}
+                disabled={isFavoriteLoading}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs sm:text-sm font-medium rounded-lg border transition-all shrink-0 ${
+                  isFavorite
+                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60'
+                    : 'bg-white dark:bg-gray-700 border-blue-400 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-600'
+                } ${isFavoriteLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                title={isFavorite ? t('remove_button') : t('add_button')}
+              >
+                {isFavoriteLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400 text-amber-500' : 'text-blue-500'}`} />
+                )}
+                <span>{isFavorite ? t('in_favorites') : t('add_to_favorites')}</span>
+              </button>
+            )}
           </div>
 
           {/* Line 2: Weather Icon & Temperature */}
