@@ -17,7 +17,12 @@ export default function Footer() {
         <div className="mb-4">
           {externalLinks.map((link, index) => (
             <span key={link.href}>
-              <Link href={link.href} className="mx-2 hover:text-gray-800 dark:hover:text-gray-100">
+              <Link
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mx-2 hover:text-gray-800 dark:hover:text-gray-100"
+              >
                 {link.label}
               </Link>
               {index < externalLinks.length - 1 && <span>|</span>}
