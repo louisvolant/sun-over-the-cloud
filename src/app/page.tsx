@@ -1,9 +1,17 @@
 // src/app/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { getWeatherAndSnow, fetchCachedFavorites } from "@/lib/weather_api";
-import { getFavorites, addFavorite, removeFavorite } from "@/lib/account_api";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getWeatherAndSnow, fetchCachedFavorites, getForecast } from "@/lib/weather_api";
+import { getFavorites, addFavorite, removeFavorite, updateFavoriteOrder } from "@/lib/account_api";
+import {
+  getLocalWeather,
+  saveLocalWeather,
+  getLocalFavorites,
+  saveLocalFavorites,
+  getAdjustedWeatherForNow,
+  LAST_LOCATION_WEATHER_KEY,
+} from '@/lib/localWeatherDb';
 import { Location, WeatherData, PrecipitationData, ForecastData, CachedFavoriteLocation, FavoriteLocation } from '@/lib/types';
 import WeatherDisplay from './components/WeatherDisplay';
 import ForecastDisplay from './components/ForecastDisplay';
@@ -13,7 +21,7 @@ import FavoriteCardComponent from './components/FavoriteCardComponent';
 import LoginModal from './components/LoginModal';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
-import { Star, Loader2 } from 'lucide-react';
+import { Star, Loader2, ArrowUpDown, PlusCircle } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'cachedFavorites';
 const LAST_LOCATION_KEY = 'lastSelectedLocation';
@@ -39,18 +47,26 @@ export default function Home() {
   const [isFavoriteActionLoading, setIsFavoriteActionLoading] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
+  // Favorites organization state (Drag and Drop / Reorder)
+  const [isOrganizing, setIsOrganizing] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const touchSourceIndexRef = useRef<number | null>(null);
+
   const { t } = useLanguage();
 
-  const handleLocationSelect = useCallback(async (location: Partial<Location>) => {
+  const handleLocationSelect = useCallback(async (location: Partial<Location>, isBackground = false) => {
     try {
-      setIsSearching(true);
-      setWeatherData(null);
-      setForecastData(null);
-      setPrecipitationData([]);
-      setRainFallsData(null);
-      setSnowDepthData(null);
-      setError(null);
-      setShowGraphs(false); // Reset showGraphs when a new location is selected
+      if (!isBackground) {
+        setIsSearching(true);
+        setWeatherData(null);
+        setForecastData(null);
+        setPrecipitationData([]);
+        setRainFallsData(null);
+        setSnowDepthData(null);
+        setError(null);
+        setShowGraphs(false);
+      }
 
       const { weather, rainFalls, snowDepth } = await getWeatherAndSnow(location.lat!, location.lon!);
 
@@ -62,7 +78,31 @@ export default function Home() {
         setRainFallsData(rainFalls);
         setSnowDepthData(snowDepth);
 
-        // Save last location to localStorage
+        // Fetch forecast in background and cache everything in IndexedDB
+        let freshForecast: ForecastData | null = null;
+        try {
+          freshForecast = await getForecast(location.lat!.toString(), location.lon!.toString());
+          setForecastData(freshForecast);
+        } catch (forecastErr) {
+          console.debug('Failed background forecast fetch:', forecastErr);
+        }
+
+        // Save last location to IndexedDB for instant reload on next app open
+        saveLocalWeather(LAST_LOCATION_WEATHER_KEY, {
+          location: {
+            name: weatherDataToSet.name,
+            country: location.country,
+            lat: location.lat!,
+            lon: location.lon!,
+            location_name: weatherDataToSet.name,
+          },
+          weather: weatherDataToSet,
+          rainFalls,
+          snowDepth,
+          forecast: freshForecast,
+        }).catch((dbErr) => console.debug('Failed saving last location to IndexedDB:', dbErr));
+
+        // Save last location to localStorage as fallback
         try {
           localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify({
             name: weatherDataToSet.name,
@@ -74,16 +114,40 @@ export default function Home() {
         } catch (e) {
           console.debug('Failed to save location to localStorage:', e);
         }
-      } else {
+      } else if (!isBackground) {
         setError(t('failed_to_fetch_weather_data'));
       }
     } catch (err) {
       console.error('Error in handleLocationSelect:', err);
-      setError(t('failed_to_fetch_weather_and_snow'));
+      if (!isBackground) {
+        setError(t('failed_to_fetch_weather_and_snow'));
+      }
     } finally {
-      setIsSearching(false);
+      if (!isBackground) {
+        setIsSearching(false);
+      }
     }
-  }, [t, setIsSearching]);
+  }, [t]);
+
+  // Synchronize updated forecast to IndexedDB
+  const handleSetForecastData = useCallback((data: ForecastData | null) => {
+    setForecastData(data);
+    if (weatherData && data) {
+      saveLocalWeather(LAST_LOCATION_WEATHER_KEY, {
+        location: {
+          name: weatherData.name,
+          country: weatherData.country,
+          lat: weatherData.coord.lat,
+          lon: weatherData.coord.lon,
+          location_name: weatherData.name,
+        },
+        weather: weatherData,
+        rainFalls: rainFallsData,
+        snowDepth: snowDepthData,
+        forecast: data,
+      }).catch((err) => console.debug('Failed updating forecast in IndexedDB:', err));
+    }
+  }, [weatherData, rainFallsData, snowDepthData]);
 
   useEffect(() => {
     const storedFavorites = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -102,67 +166,97 @@ export default function Home() {
     };
     loadCachedFavorites();
 
-    // 1. Try restoring last selected location from localStorage
-    const savedLocation = localStorage.getItem(LAST_LOCATION_KEY);
-    if (savedLocation) {
-      try {
-        const parsed = JSON.parse(savedLocation);
-        if (parsed.lat && parsed.lon) {
-          handleLocationSelect(parsed);
+    // 1. Check local IndexedDB immediately for instant visual display (PWA instant load)
+    getLocalWeather(LAST_LOCATION_WEATHER_KEY)
+      .then((cached) => {
+        if (cached && cached.location && cached.location.lat && cached.location.lon) {
+          const adjusted = getAdjustedWeatherForNow(cached);
+          if (adjusted.weather) {
+            setWeatherData(adjusted.weather);
+            setForecastData(adjusted.forecast);
+            setRainFallsData(adjusted.rainFalls);
+            setSnowDepthData(adjusted.snowDepth);
+          }
+          // Trigger background fetch to refresh live data without blocking UI
+          handleLocationSelect(cached.location, true);
           return;
         }
-      } catch (e) {
-        console.debug('Failed to parse saved location:', e);
-      }
-    }
 
-    // 2. If no saved location, request browser geolocation
-    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          let cityName = t('current_location');
-          let countryCode = '';
-
+        // Fallback: restore last selected location from localStorage
+        const savedLocation = localStorage.getItem(LAST_LOCATION_KEY);
+        if (savedLocation) {
           try {
-            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=fr`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.city || data.locality) {
-                cityName = data.city || data.locality;
-              }
-              if (data.countryCode) {
-                countryCode = data.countryCode;
-              }
+            const parsed = JSON.parse(savedLocation);
+            if (parsed.lat && parsed.lon) {
+              handleLocationSelect(parsed, false);
+              return;
             }
           } catch (e) {
-            console.debug('Reverse geocoding error:', e);
+            console.debug('Failed to parse saved location:', e);
           }
+        }
 
-          handleLocationSelect({
-            name: cityName,
-            lat,
-            lon,
-            country: countryCode,
-            location_name: cityName,
-          });
-        },
-        (geoError) => {
-          console.debug('Geolocation prompt dismissed or denied:', geoError.message);
-        },
-        { timeout: 8000, maximumAge: 60000 }
-      );
-    }
+        // Fallback: request browser geolocation if no saved location exists
+        if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const lat = position.coords.latitude;
+              const lon = position.coords.longitude;
+              let cityName = t('current_location');
+              let countryCode = '';
+
+              try {
+                const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=fr`);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.city || data.locality) {
+                    cityName = data.city || data.locality;
+                  }
+                  if (data.countryCode) {
+                    countryCode = data.countryCode;
+                  }
+                }
+              } catch (e) {
+                console.debug('Reverse geocoding error:', e);
+              }
+
+              handleLocationSelect({
+                name: cityName,
+                lat,
+                lon,
+                country: countryCode,
+                location_name: cityName,
+              }, false);
+            },
+            (geoError) => {
+              console.debug('Geolocation prompt dismissed or denied:', geoError.message);
+            },
+            { timeout: 8000, maximumAge: 60000 }
+          );
+        }
+      })
+      .catch((err) => {
+        console.debug('IndexedDB initialization error:', err);
+      });
   }, [handleLocationSelect, t]);
 
-  // Load user favorites when authenticated
+  // Load user favorites (IndexedDB cache first, then API background sync)
   const loadUserFavorites = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
-      setIsLoadingUserFavorites(true);
+      // 1. Immediately display cached favorites from IndexedDB
+      const cached = await getLocalFavorites();
+      if (cached && cached.length > 0) {
+        setUserFavorites(cached);
+        setIsLoadingUserFavorites(false);
+      } else {
+        setIsLoadingUserFavorites(true);
+      }
+
+      // 2. Fetch fresh favorites in background
       const favs = await getFavorites();
       setUserFavorites(favs);
+      saveLocalFavorites(favs).catch((err) => console.debug('Failed saving favorites to IndexedDB:', err));
     } catch (err) {
       console.error('Error fetching user favorites:', err);
     } finally {
@@ -175,13 +269,18 @@ export default function Home() {
       loadUserFavorites();
     } else {
       setUserFavorites([]);
+      setIsOrganizing(false);
     }
   }, [isAuthenticated, loadUserFavorites]);
 
   const handleRemoveFavorite = useCallback(async (id: string) => {
     try {
       await removeFavorite(id);
-      setUserFavorites((prev) => prev.filter((f) => f._id !== id));
+      setUserFavorites((prev) => {
+        const updated = prev.filter((f) => f._id !== id);
+        saveLocalFavorites(updated).catch(() => {});
+        return updated;
+      });
       if (expandedFavoriteId === id) {
         setExpandedFavoriteId(null);
       }
@@ -193,6 +292,110 @@ export default function Home() {
   const handleToggleExpandFavorite = useCallback((id: string) => {
     setExpandedFavoriteId((prev) => (prev === id ? null : id));
   }, []);
+
+  // Reordering helpers (for Drag & Drop and buttons)
+  const reorderFavorites = useCallback((sourceIndex: number, targetIndex: number) => {
+    if (sourceIndex === targetIndex || sourceIndex < 0 || targetIndex < 0) return;
+
+    setUserFavorites((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(sourceIndex, 1);
+      updated.splice(targetIndex, 0, moved);
+
+      // Save to IndexedDB immediately
+      saveLocalFavorites(updated).catch((err) => console.debug('Failed saving reordered favorites:', err));
+
+      // Persist to server
+      updateFavoriteOrder(updated.map((f) => f._id)).catch((err) => {
+        console.error('Error syncing reordered favorites to server:', err);
+      });
+
+      return updated;
+    });
+  }, []);
+
+  const handleMoveUp = useCallback((index: number) => {
+    if (index > 0) {
+      reorderFavorites(index, index - 1);
+    }
+  }, [reorderFavorites]);
+
+  const handleMoveDown = useCallback((index: number) => {
+    if (index < userFavorites.length - 1) {
+      reorderFavorites(index, index + 1);
+    }
+  }, [reorderFavorites, userFavorites.length]);
+
+  // HTML5 Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.dataTransfer.setData('text/plain', String(index));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    if (dragOverIndex === index) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndexStr = e.dataTransfer.getData('text/plain');
+    const sourceIndex = sourceIndexStr !== '' ? parseInt(sourceIndexStr, 10) : draggedIndex;
+
+    if (sourceIndex !== null && !isNaN(sourceIndex) && sourceIndex !== targetIndex) {
+      reorderFavorites(sourceIndex, targetIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Touch drag support for mobile PWA
+  const handleTouchStart = (index: number) => {
+    touchSourceIndexRef.current = index;
+    setDraggedIndex(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchSourceIndexRef.current === null) return;
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const cardElem = target?.closest('[data-favorite-id]');
+    if (cardElem) {
+      const favId = cardElem.getAttribute('data-favorite-id');
+      const idx = userFavorites.findIndex((f) => f._id === favId);
+      if (idx !== -1 && idx !== dragOverIndex) {
+        setDragOverIndex(idx);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (
+      touchSourceIndexRef.current !== null &&
+      dragOverIndex !== null &&
+      touchSourceIndexRef.current !== dragOverIndex
+    ) {
+      reorderFavorites(touchSourceIndexRef.current, dragOverIndex);
+    }
+    touchSourceIndexRef.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   const currentMatchingFavorite = weatherData
     ? userFavorites.find(
@@ -213,7 +416,11 @@ export default function Home() {
       setIsFavoriteActionLoading(true);
       if (currentMatchingFavorite) {
         await removeFavorite(currentMatchingFavorite._id);
-        setUserFavorites((prev) => prev.filter((f) => f._id !== currentMatchingFavorite._id));
+        setUserFavorites((prev) => {
+          const updated = prev.filter((f) => f._id !== currentMatchingFavorite._id);
+          saveLocalFavorites(updated).catch(() => {});
+          return updated;
+        });
       } else {
         await addFavorite({
           location_name: weatherData.name,
@@ -236,25 +443,59 @@ export default function Home() {
         {/* User Favorite Locations Cards (when authenticated, placed above search) */}
         {isAuthenticated && (
           <div className="mb-6">
-            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
-              <span>{t('my_favorite_locations_title')}</span>
-            </h3>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+                <span>{t('my_favorite_locations_title')}</span>
+              </h3>
 
-            {isLoadingUserFavorites ? (
+              {userFavorites.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setIsOrganizing((prev) => !prev)}
+                  className={`text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isOrganizing
+                      ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-xs'
+                      : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  aria-pressed={isOrganizing}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <span>{isOrganizing ? t('done_organizing') : t('organize_favorites')}</span>
+                </button>
+              )}
+            </div>
+
+            {isLoadingUserFavorites && userFavorites.length === 0 ? (
               <div className="flex items-center justify-center py-6 text-gray-500 dark:text-gray-400">
                 <Loader2 className="w-5 h-5 animate-spin mr-2 text-blue-500" />
                 <span>{t('loading_favorites')}</span>
               </div>
             ) : userFavorites.length > 0 ? (
-              <div className="space-y-2 mb-2">
-                {userFavorites.map((fav) => (
+              <div
+                className="space-y-2 mb-2"
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                {userFavorites.map((fav, index) => (
                   <FavoriteCardComponent
                     key={fav._id}
                     favorite={fav}
                     isExpanded={expandedFavoriteId === fav._id}
                     onToggleExpand={() => handleToggleExpandFavorite(fav._id)}
                     onRemove={handleRemoveFavorite}
+                    isOrganizing={isOrganizing}
+                    onMoveUp={() => handleMoveUp(index)}
+                    onMoveDown={() => handleMoveDown(index)}
+                    isFirst={index === 0}
+                    isLast={index === userFavorites.length - 1}
+                    isDragOver={dragOverIndex === index && draggedIndex !== index}
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragLeave={(e) => handleDragLeave(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStartHandle={() => handleTouchStart(index)}
                   />
                 ))}
               </div>
@@ -274,7 +515,7 @@ export default function Home() {
               {cachedFavorites.map((fav, index) => (
                 <button
                   key={index}
-                  onClick={() => handleLocationSelect({ location_name: fav.location_name, lat: fav.lat, lon: fav.lon, country: fav.country })}
+                  onClick={() => handleLocationSelect({ location_name: fav.location_name, lat: fav.lat, lon: fav.lon, country: fav.country }, false)}
                   className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center"
                 >
                   {fav.country && (
@@ -287,10 +528,18 @@ export default function Home() {
           </div>
         )}
 
+        {/* "Nouvelle ville" title displayed above search bar when there are favorites */}
+        {((isAuthenticated && userFavorites.length > 0) || (!isAuthenticated && cachedFavorites.length > 0)) && (
+          <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white flex items-center gap-2">
+            <PlusCircle className="w-5 h-5 text-blue-500" />
+            <span>{t('new_city_title')}</span>
+          </h3>
+        )}
+
         <SearchDisplay
           city={city}
           setCity={setCity}
-          onLocationSelect={handleLocationSelect}
+          onLocationSelect={(loc) => handleLocationSelect(loc, false)}
           isSearching={isSearching}
           setIsSearching={setIsSearching}
           error={error}
@@ -310,7 +559,7 @@ export default function Home() {
           <ForecastDisplay
             weatherData={weatherData}
             forecastData={forecastData}
-            setForecastData={setForecastData}
+            setForecastData={handleSetForecastData}
             setError={setError}
           />
         )}
