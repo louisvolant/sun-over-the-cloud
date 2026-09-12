@@ -8,10 +8,11 @@ Ce projet est une application de permettant de visualiser la météo en courbes.
 
 ### Backend
 
-Dans le dossier `/backend`, créez un fichier `.env` contenant les variables suivantes (les valeurs doivent être des exemples) :
+Dans le dossier `/backend`, vous pouvez configurer les variables d'environnement optionnelles dans `.env` :
 
 ```
-OPENWEATHER_API_KEY=sdmfsdjhflskdjfhsdfsdfsd
+# Optionnel : identifiant pour MET Norway (respect des conditions d'utilisation)
+MET_NO_USER_AGENT=SunOverTheCloud/1.0 contact@yourdomain.com
 ```
 
 ## Installation
