@@ -32,10 +32,6 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig = {
-  output: 'standalone',
-  env: {
-    BACKEND_URL: process.env.BACKEND_URL,
-  },
   reactStrictMode: true,
     images: {
         unoptimized: true,
