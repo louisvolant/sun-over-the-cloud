@@ -1,91 +1,54 @@
 const axios = require('axios');
-const API_KEY = process.env.OPENWEATHER_API_KEY;
-const ONECALL_V3_API = "https://api.openweathermap.org/data/3.0/onecall";
-const ONECALL_V3_TIMEMACHINE_API = "https://api.openweathermap.org/data/3.0/onecall/timemachine";
-const ONECALL_V3_DAY_SUMMARY_API = "https://api.openweathermap.org/data/3.0/onecall/day_summary";
-const { getWeatherOnCall, saveWeatherOnCall, getWeatherOnCallDaySummary, saveWeatherOnCallDaySummary } = require('../dao/onecallDao');
+const { getWeatherOnCallDaySummary, saveWeatherOnCallDaySummary } = require('../dao/onecallDao');
 
-// Fetch and save current weather data (for /onecall)
-async function fetchAndSaveCurrentWeather(lat, lon, units = 'metric', lang = 'en') {
-  try {
-    // Check if data already exists in MongoDB
-    const existingData = await getWeatherOnCall(lat, lon, units, lang);
-    if (existingData) {
-      return { success: true, data: existingData.data };
-    }
-
-    // Fetch data from OpenWeatherMap if not in MongoDB
-    const response = await axios.get(ONECALL_V3_API, {
-      params: { lat, lon, appid: API_KEY, units, lang },
-    });
-
-    const data = response.data;
-
-    // Save the new data to MongoDB
-    await saveWeatherOnCall(lat, lon, units, lang, data);
-
-    return { success: true, data };
-  } catch (error) {
-    const errorMsg = error.response
-      ? `API Error: ${error.response.status} - ${error.response.data.message || "Failed to fetch weather data"}`
-      : `Error: ${error.message}`;
-    return { success: false, error: errorMsg };
-  }
-}
-
-// Fetch historical weather data (for /onecalltimemachine)
-async function fetchHistoricalWeather(lat, lon, date, units = 'metric', lang = 'en') {
-  const timestamp = new Date(date).getTime() / 1000; // Convert to Unix timestamp in seconds
-
-  try {
-    const response = await axios.get(ONECALL_V3_TIMEMACHINE_API, {
-      params: { lat, lon, dt: timestamp, appid: API_KEY, units, lang },
-    });
-
-    const data = response.data;
-    return { success: true, data };
-  } catch (error) {
-    const errorMsg = error.response
-      ? `API Error: ${error.response.status} - ${error.response.data.message || "Failed to fetch historical weather data"}`
-      : `Error: ${error.message}`;
-    return { success: false, error: errorMsg };
-  }
-}
-
-// Fetch and save day summary data (for /onecalldaysummary)
+// Fetch and save single day summary data (used by cron scheduler) powered by Open-Meteo
 async function fetchAndSaveDaySummary(lat, lon, date) {
-  const formattedDate = date;
-
   try {
     // Check if data already exists in MongoDB
-    const existingData = await getWeatherOnCallDaySummary(lat, lon, formattedDate);
+    const existingData = await getWeatherOnCallDaySummary(lat, lon, date);
     if (existingData) {
       return { success: true, data: existingData.data };
     }
 
-    // Fetch data from OpenWeatherMap if not in MongoDB
-    const response = await axios.get(ONECALL_V3_DAY_SUMMARY_API, {
-      params: {
-        lat,
-        lon,
-        date,
-        appid: API_KEY,
-        units: 'metric', // Hardcoded as per your example
-        lang: 'en',      // Hardcoded as per your example
-      },
-    });
+    const primaryUrl = 'https://api.open-meteo.com/v1/forecast';
+    const fallbackUrl = 'https://archive-api.open-meteo.com/v1/archive';
+    const params = {
+      latitude: lat,
+      longitude: lon,
+      start_date: date,
+      end_date: date,
+      daily: 'precipitation_sum,relative_humidity_2m_mean,cloud_cover_mean',
+      timezone: 'auto',
+    };
 
-    const data = response.data;
+    let response;
+    try {
+      response = await axios.get(primaryUrl, { params });
+    } catch (err) {
+      response = await axios.get(fallbackUrl, { params });
+    }
+
+    const daily = response.data?.daily;
+    const data = {
+      date,
+      precipitation: {
+        total: daily?.precipitation_sum ? (daily.precipitation_sum[0] ?? 0) : 0,
+      },
+      humidity: {
+        afternoon: daily?.relative_humidity_2m_mean ? Math.round(daily.relative_humidity_2m_mean[0] ?? 0) : 0,
+      },
+      cloud_cover: {
+        afternoon: daily?.cloud_cover_mean ? Math.round(daily.cloud_cover_mean[0] ?? 0) : 0,
+      },
+    };
 
     // Save the new data to MongoDB
-    await saveWeatherOnCallDaySummary(lat, lon, formattedDate, data);
+    await saveWeatherOnCallDaySummary(lat, lon, date, data);
 
     return { success: true, data };
   } catch (error) {
-    const errorMsg = error.response
-      ? `API Error: ${error.response.status} - ${error.response.data.message || "Failed to fetch daily weather data"}`
-      : `Error: ${error.message}`;
-    return { success: false, error: errorMsg };
+    console.error('Error fetching day summary from Open-Meteo:', error.message);
+    return { success: false, error: error.message };
   }
 }
 
@@ -159,8 +122,6 @@ async function fetchMonthSummary(lat, lon, year, month) {
 }
 
 module.exports = {
-  fetchAndSaveCurrentWeather,
-  fetchHistoricalWeather,
   fetchAndSaveDaySummary,
   fetchMonthSummary,
 };

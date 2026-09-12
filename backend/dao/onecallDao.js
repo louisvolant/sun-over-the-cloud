@@ -9,6 +9,7 @@ const weatherOnCallSchema = new mongoose_client.Schema({
     units: String,
     lang: String,
     data: Object,
+    createdAt: { type: Date, default: Date.now, expires: 3600 },
 });
 const WeatherOnCallModel = mongoose_client.model('WeatherOnCall', weatherOnCallSchema, 'WeatherOnCall'); //Third parameter forces the collection name.
 
