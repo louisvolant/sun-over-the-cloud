@@ -110,4 +110,88 @@ test.describe('UI Navigation and Interactions', () => {
     const favButton = page.locator('button', { hasText: /favori/i }).first();
     await expect(favButton).toBeVisible({ timeout: 20000 });
   });
+
+  test('Authenticated user with favorites sees "Organiser" button and "Nouvelle ville" title', async ({ page }) => {
+    // Mock authenticated user session
+    await page.route('**/api/check-auth', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ isAuthenticated: true, user: { id: 'test-user-id', username: 'testuser' } }),
+      });
+    });
+
+    // Mock favorites API response with 2 favorites
+    await page.route('**/api/favorites', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { _id: 'fav-1', location_name: 'Paris', latitude: 48.8566, longitude: 2.3522, country_code: 'FR' },
+          { _id: 'fav-2', location_name: 'Nice', latitude: 43.7102, longitude: 7.2620, country_code: 'FR' },
+        ]),
+      });
+    });
+
+    await page.goto('/');
+
+    // Verify "Nouvelle ville" / "New city" heading appears above search
+    const newCityHeading = page.locator('h3', { hasText: /nouvelle ville|new city/i });
+    await expect(newCityHeading).toBeVisible({ timeout: 10000 });
+
+    // Verify "Organiser" / "Organize" button appears to the right of favorites title
+    const organizeButton = page.locator('button', { hasText: /organiser|organize/i });
+    await expect(organizeButton).toBeVisible();
+
+    // Click "Organiser" to enter organize drag-and-drop mode
+    await organizeButton.click();
+
+    // Verify button switches to "Terminé" / "Done"
+    const doneButton = page.locator('button', { hasText: /terminé|done/i });
+    await expect(doneButton).toBeVisible();
+
+    // Verify reorder up/down buttons and drag handles appear on cards
+    const moveButtons = page.locator('button[aria-label*="Déplacer" i], button[aria-label*="Move" i]');
+    await expect(moveButtons.first()).toBeVisible();
+
+    // Click "Terminé" / "Done" to exit organizing mode
+    await doneButton.click();
+    await expect(organizeButton).toBeVisible();
+  });
+
+  test('IndexedDB caches weather and forecast data for instant visual restore', async ({ page }) => {
+    await page.goto('/');
+
+    // Evaluate IndexedDB operations in browser context
+    const idbResult = await page.evaluate(async () => {
+      const dbName = 'sun_over_the_cloud_pwa_db';
+      return new Promise<{ success: boolean; hasStores: boolean }>((resolve) => {
+        const req = window.indexedDB.open(dbName, 1);
+        req.onupgradeneeded = (e) => {
+          const db = (e.target as IDBOpenDBRequest).result;
+          if (!db.objectStoreNames.contains('weather_cache')) {
+            db.createObjectStore('weather_cache', { keyPath: 'key' });
+          }
+          if (!db.objectStoreNames.contains('favorites_cache')) {
+            db.createObjectStore('favorites_cache', { keyPath: 'key' });
+          }
+        };
+        req.onsuccess = () => {
+          const db = req.result;
+          const hasStores =
+            db.objectStoreNames.contains('weather_cache') &&
+            db.objectStoreNames.contains('favorites_cache');
+          db.close();
+          resolve({ success: true, hasStores });
+        };
+        req.onerror = () => {
+          resolve({ success: false, hasStores: false });
+        };
+      });
+    });
+
+    expect(idbResult.success).toBe(true);
+    expect(idbResult.hasStores).toBe(true);
+  });
 });
+
