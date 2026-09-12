@@ -1,45 +1,51 @@
-//routes/search_api.js
+// routes/search_api.js
 
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
-const GEOCODING_API = "http://api.openweathermap.org/geo/1.0/direct";
-const API_KEY = process.env.OPENWEATHER_API_KEY;
+const OPEN_METEO_GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
 const { getLocationSearch, saveLocationSearch } = require('../dao/searchDao');
 
-// Route for search
+// Route for geocoding search powered by Open-Meteo
 router.get('/search', async (req, res) => {
-    const param_lang = 'en';
+    const param_lang = req.query.lang || 'en';
     const city = req.query.city;
     if (!city) {
         return res.status(400).send({ error: "City parameter is required" });
     }
 
     try {
-
         // Check if data already exists in MongoAtlas
         const existingData = await getLocationSearch(city, param_lang);
         if (existingData) {
             return res.json(existingData.data);
         }
 
-        const response = await axios.get(GEOCODING_API, {
+        const response = await axios.get(OPEN_METEO_GEOCODING_API, {
             params: {
-                q: city,
-                appid: API_KEY,
-                limit: '3',
-                lang: param_lang
-            }
+                name: city,
+                count: 5,
+                language: param_lang,
+                format: 'json',
+            },
         });
 
-        const data = response.data;
+        const rawResults = response.data?.results || [];
+        const formattedLocations = rawResults.map((item) => ({
+            name: item.name,
+            lat: item.latitude,
+            lon: item.longitude,
+            country: item.country_code,
+            state: item.admin1,
+            location_name: item.admin1 ? `${item.name}, ${item.admin1}` : item.name,
+        }));
 
         // Save the new data to MongoDB
-        await saveLocationSearch(city, param_lang, data);
+        await saveLocationSearch(city, param_lang, formattedLocations);
 
-        res.json(response.data);
+        res.json(formattedLocations);
     } catch (error) {
-        console.error("Error fetching location data:", error.response ? error.response.data : error.message);
+        console.error("Error fetching location data from Open-Meteo:", error.response ? error.response.data : error.message);
         res.status(500).send({ error: "Failed to fetch location data" });
     }
 });
