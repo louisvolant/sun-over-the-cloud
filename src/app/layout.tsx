@@ -2,6 +2,7 @@
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Footer from './components/Footer';
+import BottomControls from './components/BottomControls';
 import { ThemeProvider } from './components/ThemeProvider';
 import HeaderButtons from './components/HeaderButtons';
 import { AuthProvider } from '@/context/AuthContext';
@@ -68,18 +69,19 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <LanguageProvider>
-              <header className="flex flex-col md:flex-row md:justify-between md:items-center px-4 pb-4 bg-white dark:bg-gray-800 shadow-md pt-[calc(1rem+var(--safe-top))]">
-                <Link href="/" className="flex items-center space-x-2 mb-4 md:mb-0">
-                  <Image src="/icon.png" alt="Sun Over The Cloud" width={40} height={40} />
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white whitespace-nowrap">Sun Over The Cloud</h1>
+              <header className="flex flex-row justify-between items-center px-4 py-3 bg-white dark:bg-gray-800 shadow-md pt-[calc(0.75rem+var(--safe-top))]">
+                <Link href="/" className="flex items-center space-x-2 min-w-0 mr-2">
+                  <Image src="/icon.png" alt="Sun Over The Cloud" width={36} height={36} className="shrink-0" />
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">Sun Over The Cloud</h1>
                 </Link>
-                <div className="self-end md:self-auto">
+                <div className="shrink-0">
                   <HeaderButtons />
                 </div>
               </header>
               <main className="flex-grow bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
                 {children}
               </main>
+              <BottomControls />
               <Footer />
             </LanguageProvider>
           </AuthProvider>
