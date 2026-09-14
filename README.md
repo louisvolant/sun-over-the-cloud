@@ -8,8 +8,16 @@ A progressive weather web application designed for exploring live meteorological
 
 - **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway.
 - **Monthly Climate History Graphs**: Interactive bar and line charts for monthly precipitation, humidity, and cloud cover powered by Open-Meteo.
-- **Mobile-Optimized PWA Experience**:
+<- **Mobile-Optimized PWA Experience & Zoom Prevention**:
   - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-y`, `overflow-x: hidden`, `overscroll-behavior-x: none`, and WebKit gesture suppression).
+  - **Complete Zoom/Unzoom Suppression in PWA Mode**: When launched as an installed PWA (detected via `display-mode: standalone`, `fullscreen`, `minimal-ui`, iOS Safari `navigator.standalone`, or PWA launch parameters), all unwanted zooming and unzooming gestures are strictly prevented to deliver an authentic native app experience:
+    - **Trackpad Pinch & Wheel Zoom**: Intercepts `wheel` events with `ctrlKey` / `metaKey` to block macOS trackpad pinch gestures and Ctrl+Wheel zooming.
+    - **Keyboard Zoom Shortcuts**: Intercepts `Ctrl` / `Cmd` combinations with `+`, `-`, `0`, `=`, and numpad keys.
+    - **Multi-Touch Pinch-to-Zoom**: Suppresses multi-finger `touchstart` and `touchmove` events on mobile touchscreens without impacting single-touch interactions (such as dragging favorite cards).
+    - **WebKit Native Gesture Suppression**: Captures and cancels iOS Safari `gesturestart`, `gesturechange`, and `gestureend` events.
+    - **Double-Tap Zoom Protection**: Suppresses accidental double-tap zooming on non-interactive elements while preserving instant click responsiveness on buttons, links, and form fields.
+    - **iOS Input Focus Stability**: Enforces minimum 16px font sizing on inputs and selects in PWA mode to prevent iOS Safari from automatically zooming into form fields.
+  - **Preserved Browser Accessibility**: Outside of PWA standalone mode, standard desktop browser zoom shortcuts and pinch gestures remain fully operational for accessibility.
   - **Single-Line Header**: Seamless horizontal navigation on mobile. When authenticated, the account action compresses into a symbol button (`Settings` gear on Home, `Home` icon on Account).
   - **Mobile Bottom Bar**: Language selector and logout button positioned cleanly at the bottom of the page before the footer.
 - **Instant Visual Load via Local Database (IndexedDB & PWA Stale-While-Revalidate)**:
