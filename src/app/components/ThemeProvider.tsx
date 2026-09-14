@@ -19,16 +19,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const initialTheme = savedTheme ? savedTheme === 'dark' : prefersDark;
     setDarkMode(initialTheme);
     document.documentElement.classList.toggle('dark', initialTheme);
-
-    const preventGesture = (e: Event) => {
-      e.preventDefault();
-    };
-    document.addEventListener('gesturestart', preventGesture, { passive: false });
-    document.addEventListener('gesturechange', preventGesture, { passive: false });
-    return () => {
-      document.removeEventListener('gesturestart', preventGesture);
-      document.removeEventListener('gesturechange', preventGesture);
-    };
   }, []);
 
   const toggleDarkMode = () => {

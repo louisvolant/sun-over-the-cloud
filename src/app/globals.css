@@ -87,3 +87,30 @@ body {
   margin: 0;
   overscroll-behavior-x: none;
 }
+
+/* 6. PWA Standalone Mode Zoom Prevention & Mobile Native Feel */
+@media all and (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+  html, body {
+    touch-action: pan-x pan-y;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Prevent automatic iOS Safari zoom when focusing form inputs */
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+html.pwa-mode,
+html.pwa-mode body {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html.pwa-mode input,
+html.pwa-mode select,
+html.pwa-mode textarea {
+  font-size: 16px;
+}

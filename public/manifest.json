@@ -3,7 +3,7 @@
   "background_color": "#ffffff",
   "display": "standalone",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "name": "Sun Over The Cloud",
   "short_name": "SunOverTheCloud",
   "icons": [
