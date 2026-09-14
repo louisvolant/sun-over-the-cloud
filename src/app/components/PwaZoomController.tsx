@@ -104,9 +104,15 @@ export default function PwaZoomController() {
       const handleTouchEnd = (event: TouchEvent) => {
         const now = Date.now();
         if (now - lastTouchEnd <= 300) {
-          const target = event.target as HTMLElement | null;
-          const isInteractive = target?.closest(
-            'button, a, input, select, textarea, [role="button"], [tabindex]'
+          const target = event.target;
+          const element =
+            target instanceof Element
+              ? target
+              : (target as Node | null)?.parentElement;
+          const isInteractive = Boolean(
+            element?.closest?.(
+              'button, a, input, select, textarea, [role="button"], [tabindex]'
+            )
           );
           if (!isInteractive) {
             event.preventDefault();
