@@ -33,6 +33,18 @@ const withPWA = require('next-pwa')({
 
 const nextConfig = {
   reactStrictMode: true,
+  async headers() {
+    return [
+      {
+        source: '/((?!_next/static|_next/image|favicon\\.ico|icon\\.(?:png|svg)|manifest\\.json|robots\\.txt).*)',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+      {
+        source: '/_next/static/(.*)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+    ];
+  },
     images: {
         unoptimized: true,
         remotePatterns: [

@@ -1,5 +1,4 @@
 // src/app/layout.tsx
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Footer from './components/Footer';
 import BottomControls from './components/BottomControls';
@@ -88,7 +87,6 @@ export default function RootLayout({
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>
-        <SpeedInsights />
       </body>
     </html>
   );

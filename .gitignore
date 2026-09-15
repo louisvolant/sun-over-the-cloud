@@ -48,6 +48,7 @@ next-env.d.ts
 # Ignorer les dossiers techniques de Node.js, React, Next.js, Express.js, etc.
 node_modules/
 .next/
+.open-next/
 dist/
 build/
 .cache/

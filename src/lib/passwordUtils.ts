@@ -1,15 +1,23 @@
 // src/lib/passwordUtils.ts
-import argon2 from 'argon2';
+import { argon2id, argon2Verify } from 'hash-wasm';
 
 export const hashPasswordArgon2 = async (password: string): Promise<string> => {
-  return await argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 2 ** 16,
-    timeCost: 3,
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return await argon2id({
+    password,
+    salt,
     parallelism: 1,
+    iterations: 3,
+    memorySize: 65536,
+    hashLength: 32,
+    outputType: 'encoded',
   });
 };
 
 export const verifyPassword = async (password: string, hash: string): Promise<boolean> => {
-  return await argon2.verify(hash, password);
+  try {
+    return await argon2Verify({ password, hash });
+  } catch {
+    return false;
+  }
 };

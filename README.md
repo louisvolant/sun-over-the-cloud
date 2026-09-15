@@ -8,7 +8,7 @@ A progressive weather web application designed for exploring live meteorological
 
 - **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway.
 - **Monthly Climate History Graphs**: Interactive bar and line charts for monthly precipitation, humidity, and cloud cover powered by Open-Meteo.
-<- **Mobile-Optimized PWA Experience & Zoom Prevention**:
+- **Mobile-Optimized PWA Experience & Zoom Prevention**:
   - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-y`, `overflow-x: hidden`, `overscroll-behavior-x: none`, and WebKit gesture suppression).
   - **Complete Zoom/Unzoom Suppression in PWA Mode**: When launched as an installed PWA (detected via `display-mode: standalone`, `fullscreen`, `minimal-ui`, iOS Safari `navigator.standalone`, or PWA launch parameters), all unwanted zooming and unzooming gestures are strictly prevented to deliver an authentic native app experience:
     - **Trackpad Pinch & Wheel Zoom**: Intercepts `wheel` events with `ctrlKey` / `metaKey` to block macOS trackpad pinch gestures and Ctrl+Wheel zooming.
@@ -95,4 +95,40 @@ npx tsc --noEmit
 
 # End-to-end tests
 npx playwright test
+```
+
+---
+
+## Cloudflare Workers Deployment
+
+This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@opennextjs/cloudflare`).
+
+### Architecture
+
+- `open-next.config.ts` configures the `cloudflare-node` worker wrapper with `edge` converter, `fetch` external request proxy, and dummy incremental, tag, and queue caches, plus an external middleware using the `cloudflare-edge` wrapper and `node:crypto` as an edge external.
+- `wrangler.toml` serves `.open-next/worker.js` with static assets from `.open-next/assets` (`ASSETS` binding), `compatibility_date = "2025-04-01"` and `nodejs_compat` flag. `keep_vars = true` preserves dashboard-managed variables on each deploy.
+- `next.config.js` sets long-lived immutable caching for `/_next/static/*` and `no-cache, no-store, must-revalidate` for all other pages.
+- Password hashing uses `hash-wasm` (pure WebAssembly argon2id) instead of native `argon2`, keeping the same PHC-encoded `$argon2id$v=19$` format so existing password hashes remain verifiable.
+
+### Environment Variables
+
+All variables are managed via the Cloudflare dashboard or `wrangler secret put`. No `[vars]` block is committed:
+
+```text
+BACKEND_URL, FRONTEND_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MAILJET_API_KEY,
+MAILJET_API_SECRET, MAILJET_SENDER_EMAIL, MET_NO_USER_AGENT, MONGODB_ATLAS_APP_NAME,
+MONGODB_ATLAS_CLUSTER_URL, MONGODB_ATLAS_DB_NAME, MONGODB_ATLAS_PASSWORD,
+MONGODB_ATLAS_USERNAME, NEXT_PUBLIC_BACKEND_URL, REDIRECT_URI, SESSION_COOKIE_KEY
+```
+
+For local development, copy these into `.env.local`.
+
+### Commands
+
+```bash
+# Build for Cloudflare Workers
+npm run build:worker
+
+# Build and deploy to Cloudflare Workers
+npm run deploy
 ```
