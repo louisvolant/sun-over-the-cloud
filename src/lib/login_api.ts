@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-console.debug('BACKEND_URL:', process.env.BACKEND_URL);
-
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || '',
+  baseURL: '',
   withCredentials: true,
 });
 

@@ -17,7 +17,7 @@ const generateStrongPassword = () => {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  const frontendUrl = process.env.FRONTEND_URL || request.nextUrl.origin;
+  const frontendUrl = request.nextUrl.origin;
 
   if (!code) {
     return NextResponse.redirect(`${frontendUrl}?error=missing_code`);
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: process.env.REDIRECT_URI,
+      redirect_uri: new URL('/api/auth/callback/google', request.url).toString(),
       grant_type: 'authorization_code',
     });
 
