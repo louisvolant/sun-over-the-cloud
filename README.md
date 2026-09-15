@@ -126,9 +126,11 @@ For local development, copy these into `.env.local`.
 ### Commands
 
 ```bash
-# Build for Cloudflare Workers
-npm run build:worker
+# Build for Cloudflare Workers (Next.js build plus OpenNext worker bundle)
+npm run build
 
 # Build and deploy to Cloudflare Workers
 npm run deploy
 ```
+
+The Cloudflare dashboard build command must run the OpenNext bundling step. Since `npm run build` already includes `opennextjs-cloudflare build`, keep the dashboard build command as `npm run build` with deploy command `npx wrangler deploy`.
