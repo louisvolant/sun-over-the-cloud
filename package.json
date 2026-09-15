@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --webpack && opennextjs-cloudflare build",
-    "build:worker": "next build --webpack && opennextjs-cloudflare build",
+    "build": "next build --webpack",
+    "build:worker": "opennextjs-cloudflare build",
     "deploy": "npm run build:worker && wrangler deploy",
     "start": "next start",
     "lint": "eslint .",
