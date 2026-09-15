@@ -322,3 +322,20 @@ export async function getLocalFavorites(): Promise<FavoriteLocation[] | null> {
     }
   });
 }
+
+export async function deleteLocalWeather(key: string): Promise<void> {
+  const db = await openDB();
+  if (!db) return;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(WEATHER_STORE, 'readwrite');
+      const store = tx.objectStore(WEATHER_STORE);
+      store.delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}

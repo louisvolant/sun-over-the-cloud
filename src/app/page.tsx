@@ -7,6 +7,7 @@ import { getFavorites, addFavorite, removeFavorite, updateFavoriteOrder } from "
 import {
   getLocalWeather,
   saveLocalWeather,
+  deleteLocalWeather,
   getLocalFavorites,
   saveLocalFavorites,
   getAdjustedWeatherForNow,
@@ -21,7 +22,7 @@ import FavoriteCardComponent from './components/FavoriteCardComponent';
 import LoginModal from './components/LoginModal';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
-import { Star, Loader2, ArrowUpDown, PlusCircle } from 'lucide-react';
+import { Star, Loader2, ArrowUpDown, PlusCircle, X } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'cachedFavorites';
 const LAST_LOCATION_KEY = 'lastSelectedLocation';
@@ -437,6 +438,15 @@ export default function Home() {
     }
   }, [weatherData, isAuthenticated, currentMatchingFavorite, loadUserFavorites]);
 
+  const handleClearLastLocation = useCallback(() => {
+    setWeatherData(null);
+    setForecastData(null);
+    deleteLocalWeather(LAST_LOCATION_WEATHER_KEY).catch(() => {});
+    try {
+      localStorage.removeItem(LAST_LOCATION_KEY);
+    } catch {}
+  }, []);
+
   return (
     <div className="flex justify-center items-start py-8">
       <div className="w-full max-w-4xl mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg mb-8">
@@ -546,36 +556,48 @@ export default function Home() {
           setError={setError}
         />
 
-        <WeatherDisplay
-          weatherData={weatherData}
-          rainFallsData={rainFallsData}
-          snowDepthData={snowDepthData}
-          isFavorite={!!currentMatchingFavorite}
-          onToggleFavorite={handleToggleSearchFavorite}
-          isFavoriteLoading={isFavoriteActionLoading}
-        />
-
-        {weatherData && (
-          <ForecastDisplay
+        <div className="relative">
+          {weatherData !== null && (
+            <button
+              type="button"
+              onClick={handleClearLastLocation}
+              aria-label="Dismiss"
+              className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <WeatherDisplay
             weatherData={weatherData}
-            forecastData={forecastData}
-            setForecastData={handleSetForecastData}
-            setError={setError}
+            rainFallsData={rainFallsData}
+            snowDepthData={snowDepthData}
+            isFavorite={!!currentMatchingFavorite}
+            onToggleFavorite={handleToggleSearchFavorite}
+            isFavoriteLoading={isFavoriteActionLoading}
           />
-        )}
 
-        {weatherData && (
-          <GraphsDisplay
-            weatherData={weatherData}
-            precipitationData={precipitationData}
-            setPrecipitationData={setPrecipitationData}
-            isLoadingPrecipitation={isLoadingPrecipitation}
-            setIsLoadingPrecipitation={setIsLoadingPrecipitation}
-            showGraphs={showGraphs}
-            setShowGraphs={setShowGraphs}
-            setError={setError}
-          />
-        )}
+          {weatherData && (
+            <ForecastDisplay
+              weatherData={weatherData}
+              forecastData={forecastData}
+              setForecastData={handleSetForecastData}
+              setError={setError}
+            />
+          )}
+
+          {weatherData && (
+            <GraphsDisplay
+              weatherData={weatherData}
+              precipitationData={precipitationData}
+              setPrecipitationData={setPrecipitationData}
+              isLoadingPrecipitation={isLoadingPrecipitation}
+              setIsLoadingPrecipitation={setIsLoadingPrecipitation}
+              showGraphs={showGraphs}
+              setShowGraphs={setShowGraphs}
+              setError={setError}
+            />
+          )}
+        </div>
 
         <LoginModal isOpen={isLoginModalOpen} setIsOpen={setIsLoginModalOpen} />
       </div>

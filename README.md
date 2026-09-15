@@ -26,6 +26,10 @@ A progressive weather web application designed for exploring live meteorological
   - When favorites or popular cities are present, a dedicated "New city" section title clearly separates favorite cards from the location search input.
   - Autocomplete location search with geolocation fallback.
   - Search results include an immediate "Add to favorites" toggle button.
+  - Last searched location can be dismissed via a close button, clearing cached weather and stored selection.
+- **Forecast Display**:
+  - First forecast group shows the next 24 hours of slots instead of the remaining calendar day.
+  - Hourly slots and card padding compress on mobile to show at least 5 slots without scrolling.
 - **Internationalization (i18n)**: Full support for English, French, and Spanish with persistent user preferences.
 - **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, session cookies, and account management.
 - **Optimistic Auth**: Favorites render instantly from a local session flag, with background verification and a header sync spinner.

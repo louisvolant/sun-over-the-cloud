@@ -109,20 +109,37 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
     const grouped: { [key: string]: { dt: number; main: { temp: number }; weather: { description: string; icon: string }[] }[] } = {};
     const dateLabels: { [key: string]: string } = {};
 
-    forecast.list.forEach((item) => {
+    const futureItems = forecast.list
+      .filter((item) => {
+        const date = new Date(item.dt * 1000);
+        const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone || 'UTC' }));
+        console.debug('item.dt:', item.dt, 'localDate:', localDate);
+        return localDate.getTime() >= currentLocalTime.getTime();
+      })
+      .sort((a, b) => a.dt - b.dt);
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const next24Items = futureItems
+      .filter((item) => item.dt - nowSec <= 24 * 3600)
+      .slice(0, 8);
+    const next24Set = new Set(next24Items.map((i) => i.dt));
+
+    if (next24Items.length > 0) {
+      grouped['next_24_hours'] = next24Items;
+      dateLabels['next_24_hours'] = t('next_hours_forecast');
+    }
+
+    const remaining = futureItems.filter((item) => !next24Set.has(item.dt));
+    remaining.forEach((item) => {
       const date = new Date(item.dt * 1000);
       // Adjust forecast time to the location's timezone
       const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone || 'UTC' }));
-      console.debug('item.dt:', item.dt, 'localDate:', localDate);
-      // Only include future times
-      if (localDate.getTime() >= currentLocalTime.getTime()) {
-        const dateKey = localDate.toLocaleDateString();
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = [];
-          dateLabels[dateKey] = formatDateDisplay(localDate, currentLocalTime);
-        }
-        grouped[dateKey].push(item);
+      const dateKey = localDate.toLocaleDateString();
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+        dateLabels[dateKey] = formatDateDisplay(localDate, currentLocalTime);
       }
+      grouped[dateKey].push(item);
     });
 
     return { grouped, dateLabels };
@@ -157,7 +174,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
 
   return (
     <div className="mb-4">
-      <div className={`p-4 sm:p-6 rounded-xl shadow-xs mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-gray-200/80'} text-gray-950 dark:text-gray-100`}>
+      <div className={`px-2 py-4 sm:p-6 rounded-xl shadow-xs mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-gray-200/80'} text-gray-950 dark:text-gray-100`}>
         <h2 className="text-xl sm:text-2xl font-semibold mb-4">{t('weather_forecast_title')}</h2>
         <div className="flex flex-col gap-3">
           {(() => {
@@ -222,18 +239,18 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                   {/* Hourly Forecast (expanded only) */}
                   {expanded && (
                     <div className="overflow-x-auto scroll-smooth pt-3 pb-1">
-                      <div className="flex flex-row gap-2">
+                      <div className="flex flex-row gap-1 sm:gap-2">
                         {items.map((item, itemIdx) => (
                           <div
                             key={itemIdx}
-                            className={`flex flex-col items-center min-w-[100px] p-1 border-r-[0.5px] last:border-r-0 ${
+                            className={`flex flex-col items-center min-w-[68px] sm:min-w-[100px] px-0.5 py-1 sm:p-1 border-r-[0.5px] last:border-r-0 ${
                               darkMode ? 'border-gray-600' : 'border-gray-300'
                             }`}
                           >
                             <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone)}</span>
                             <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
                               <i
-                                className={`wi ${weatherIconMap[item.weather[0].icon]} text-3xl ${
+                                className={`wi ${weatherIconMap[item.weather[0].icon]} text-2xl sm:text-3xl ${
                                   weatherIconColorMap[item.weather[0].icon]
                                 } ${weatherIconAnimationMap[item.weather[0].icon] || ''}`}
                               />

@@ -363,7 +363,7 @@ export default function FavoriteCardComponent({
 
       {/* Expanded Forecast Details (only when expanded and not in organizing mode) */}
       {isExpanded && !isOrganizing && (
-        <div className="border-t border-gray-200/80 dark:border-gray-700/80 p-3 sm:p-5 pt-4 bg-gray-50/50 dark:bg-gray-900/40 rounded-b-xl">
+        <div className="border-t border-gray-200/80 dark:border-gray-700/80 px-1.5 py-3 sm:px-5 sm:py-5 bg-gray-50/50 dark:bg-gray-900/40 rounded-b-xl">
           {/* Detailed Current Weather Conditions */}
           {weatherData && (
             <WeatherDisplay

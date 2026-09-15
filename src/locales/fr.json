@@ -28,6 +28,7 @@
   "today_forecast": "Cet après-midi",
   "tonight_forecast": "Ce soir",
   "tomorrow_forecast": "Demain",
+  "next_hours_forecast": "Les prochaines heures",
   "celsius_short": "°C",
   "feels_like": "ressenti",
   "wind_speed_unit": "m/s",
