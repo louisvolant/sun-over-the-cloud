@@ -21,8 +21,7 @@ export default function LoginModal({ isOpen, setIsOpen }: LoginModalProps) {
   const { t } = useLanguage();
 
   const handleGoogleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
-    window.location.href = `${apiUrl}/api/auth/google`;
+    window.location.href = '/api/auth/google';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
