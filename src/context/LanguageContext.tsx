@@ -2,6 +2,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import enTranslations from '@/locales/en.json';
+import frTranslations from '@/locales/fr.json';
+import esTranslations from '@/locales/es.json';
 
 type Language = 'en' | 'fr' | 'es';
 
@@ -14,44 +17,47 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-type TranslationModule = { default: Record<string, string> };
+const translationsMap: Record<Language, Record<string, string>> = {
+  en: enTranslations,
+  fr: frTranslations,
+  es: esTranslations,
+};
 
-const loadTranslations = async (lang: Language): Promise<Record<string, string>> => {
-  try {
-    const mod = await import(`@/locales/${lang}.json`) as TranslationModule;
-    return mod.default;
-  } catch (error) {
-    console.error(`Failed to load translations for ${lang}:`, error);
-    const defaultMod = await import(`@/locales/en.json`) as TranslationModule;
-    return defaultMod.default;
-  }
+const defaultLocaleCodes: Record<Language, string> = {
+  en: 'en-US',
+  fr: 'fr-FR',
+  es: 'es-ES',
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
-  const [currentTranslations, setCurrentTranslations] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const initializeLanguage = async () => {
-      const savedLanguage = localStorage.getItem('language') as Language;
-      const initialLang: Language = (savedLanguage && ['en', 'fr', 'es'].includes(savedLanguage)) ? savedLanguage : 'en';
-      setLanguageState(initialLang);
-      const translations = await loadTranslations(initialLang);
-      setCurrentTranslations(translations);
-    };
-    initializeLanguage();
+    const savedLanguage = localStorage.getItem('language') as Language;
+    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'fr' || savedLanguage === 'es')) {
+      setLanguageState(savedLanguage);
+    }
   }, []);
 
-  const setLanguage = useCallback(async (lang: Language) => {
-    if (language === lang) return;
+  const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('language', lang);
-    const translations = await loadTranslations(lang);
-    setCurrentTranslations(translations);
+    try {
+      localStorage.setItem('language', lang);
+    } catch (e) {
+      console.warn('Failed to save language to localStorage:', e);
+    }
+  }, []);
+
+  const currentTranslations = useMemo(() => {
+    return translationsMap[language] || translationsMap.en;
   }, [language]);
 
   const t = useCallback((key: string, replacements?: Record<string, string | number>): string => {
-    let translatedText = currentTranslations[key] || key;
+    let translatedText = currentTranslations[key] || translationsMap.en[key] || key;
+
+    if (key === 'locale_code' && (!translatedText || translatedText === 'locale_code')) {
+      translatedText = defaultLocaleCodes[language] || 'en-US';
+    }
 
     if (replacements) {
       for (const placeholder in replacements) {
@@ -61,7 +67,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       }
     }
     return translatedText;
-  }, [currentTranslations]);
+  }, [currentTranslations, language]);
 
   const tWeather = useCallback((description: string): string => {
     const key = `weather_${description.toLowerCase().replace(/ /g, '_')}`;

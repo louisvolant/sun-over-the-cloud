@@ -31,7 +31,13 @@ export default function GraphsDisplay({
   setError,
 }: GraphsDisplayProps) {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const getLocale = useCallback(() => {
+    const code = t('locale_code');
+    if (code && code !== 'locale_code') return code;
+    return language === 'fr' ? 'fr-FR' : (language === 'es' ? 'es-ES' : 'en-US');
+  }, [t, language]);
 
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(() => {
     const today = new Date();
@@ -39,9 +45,9 @@ export default function GraphsDisplay({
   });
 
   const getDisplayMonth = useCallback((date: Date) => {
-    const formatted = date.toLocaleDateString(t('locale_code'), { year: 'numeric', month: 'long' });
+    const formatted = date.toLocaleDateString(getLocale(), { year: 'numeric', month: 'long' });
     return formatted ? formatted.charAt(0).toUpperCase() + formatted.slice(1) : '';
-  }, [t]);
+  }, [getLocale]);
 
   const fetchMonthData = useCallback(async () => {
     if (!weatherData) {
@@ -70,7 +76,7 @@ export default function GraphsDisplay({
       );
 
       const transformedData: PrecipitationData[] = sortedResponses.map((response: DailySummaryApiResponse) => {
-        const rawDate = new Date(response.date).toLocaleDateString(t('locale_code'), { day: 'numeric', month: 'short' });
+        const rawDate = new Date(response.date).toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' });
         const formattedDate = rawDate.replace(/\b([a-zA-ZÀ-ÿ])/g, (c) => c.toUpperCase());
         return {
           date: formattedDate,
@@ -89,7 +95,7 @@ export default function GraphsDisplay({
     } finally {
       setIsLoadingPrecipitation(false);
     }
-  }, [weatherData, currentMonthDate, setPrecipitationData, setIsLoadingPrecipitation, setShowGraphs, setError, t]);
+  }, [weatherData, currentMonthDate, setPrecipitationData, setIsLoadingPrecipitation, setShowGraphs, setError, t, getLocale]);
 
   // Use useEffect to trigger data fetching when currentMonthDate or weatherData changes
   useEffect(() => {
