@@ -9,7 +9,7 @@ A progressive weather web application designed for exploring live meteorological
 - **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway.
 - **Monthly Climate History Graphs**: Interactive bar and line charts for monthly precipitation, humidity, and cloud cover powered by Open-Meteo.
 - **Mobile-Optimized PWA Experience**:
-  - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-x pan-y`, and WebKit gesture suppression).
+  - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-y`, `overflow-x: hidden`, `overscroll-behavior-x: none`, and WebKit gesture suppression).
   - **Single-Line Header**: Seamless horizontal navigation on mobile. When authenticated, the account action compresses into a symbol button (`Settings` gear on Home, `Home` icon on Account).
   - **Mobile Bottom Bar**: Language selector and logout button positioned cleanly at the bottom of the page before the footer.
 - **Instant Visual Load via Local Database (IndexedDB & PWA Stale-While-Revalidate)**:
