@@ -6,12 +6,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Settings, Home } from 'lucide-react';
+import { Settings, Home, Loader2 } from 'lucide-react';
 import LoginModal from './LoginModal';
 
 export default function HeaderButtons() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, handleLogout } = useAuth();
+  const { isAuthenticated, isSyncing, handleLogout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const pathname = usePathname();
 
@@ -37,6 +37,16 @@ export default function HeaderButtons() {
 
         {isAuthenticated ? (
           <>
+            {/* Fixed-size slot avoids layout shift when the spinner disappears. */}
+            <span className="inline-flex w-4 h-4 items-center justify-center" aria-hidden={!isSyncing}>
+              {isSyncing && (
+                <Loader2
+                  className="w-4 h-4 animate-spin text-gray-400"
+                  role="status"
+                  aria-label="Syncing session"
+                />
+              )}
+            </span>
             {pathname !== '/account' ? (
               <Link href="/account">
                 <button className="flex items-center gap-1.5 border border-blue-500 text-blue-500 bg-transparent hover:bg-blue-500 hover:text-white px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium">
@@ -79,7 +89,18 @@ export default function HeaderButtons() {
       {/* Mobile Single-line Header Navigation */}
       <div className="flex md:hidden items-center space-x-2">
         {isAuthenticated ? (
-          <Link
+          <>
+            {/* Fixed-size slot avoids layout shift when the spinner disappears. */}
+            <span className="inline-flex w-5 h-5 items-center justify-center" aria-hidden={!isSyncing}>
+              {isSyncing && (
+                <Loader2
+                  className="w-4 h-4 animate-spin text-gray-400"
+                  role="status"
+                  aria-label="Syncing session"
+                />
+              )}
+            </span>
+            <Link
             href={pathname === '/account' ? '/' : '/account'}
             title={pathname === '/account' ? 'Home' : t('account_button')}
             aria-label={pathname === '/account' ? 'Home' : t('account_button')}
@@ -87,6 +108,7 @@ export default function HeaderButtons() {
           >
             {pathname === '/account' ? <Home className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
           </Link>
+          </>
         ) : (
           <>
             <Link href="/register">

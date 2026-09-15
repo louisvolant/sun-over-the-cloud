@@ -7,24 +7,73 @@ import { useRouter } from 'next/navigation';
 
 type AuthContextType = {
   isAuthenticated: boolean;
+  isSyncing: boolean;
   setIsAuthenticated: (value: boolean) => void;
   handleLogout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Local flag for optimistic auth on app open (fast path, favorites render instantly).
+const AUTH_FLAG_KEY = 'auth_token';
+
+function hasStoredAuthFlag(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    return !!window.localStorage.getItem(AUTH_FLAG_KEY);
+  } catch {
+    return false;
+  }
+}
+
+function persistAuthFlag(value: boolean) {
+  try {
+    if (typeof window === 'undefined') return;
+    if (value) {
+      window.localStorage.setItem(AUTH_FLAG_KEY, '1');
+    } else {
+      window.localStorage.removeItem(AUTH_FLAG_KEY);
+    }
+  } catch {
+    // Ignore storage errors (private mode, quota, etc.)
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Start authenticated when a local session exists, verify in background.
+  const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => hasStoredAuthFlag());
+  // True while background verification is in progress (only when optimistically authenticated).
+  const [isSyncing, setIsSyncing] = useState<boolean>(() => hasStoredAuthFlag());
   const router = useRouter();
+
+  const setIsAuthenticated = (value: boolean) => {
+    setIsAuthenticatedState(value);
+    persistAuthFlag(value);
+    if (!value) {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     const verifyAuth = async () => {
       try {
         const authStatus = await checkAuth();
-        setIsAuthenticated(authStatus.isAuthenticated);
+        if (authStatus.isAuthenticated) {
+          setIsAuthenticatedState(true);
+          persistAuthFlag(true);
+        } else {
+          // Expired session: fall back to unauthenticated.
+          setIsAuthenticatedState(false);
+          persistAuthFlag(false);
+        }
       } catch (error) {
         console.error('Auth check failed:', error);
-        setIsAuthenticated(false);
+        // Keep optimistic value on network error, stop sync indicator.
+        if (!hasStoredAuthFlag()) {
+          setIsAuthenticatedState(false);
+        }
+      } finally {
+        setIsSyncing(false);
       }
     };
     verifyAuth();
@@ -33,7 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleLogout = async () => {
     try {
       await logout();
-      setIsAuthenticated(false);
+      setIsAuthenticatedState(false);
+      setIsSyncing(false);
+      persistAuthFlag(false);
       router.push('/');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -41,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, handleLogout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isSyncing, setIsAuthenticated, handleLogout }}>
       {children}
     </AuthContext.Provider>
   );

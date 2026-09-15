@@ -28,6 +28,7 @@ A progressive weather web application designed for exploring live meteorological
   - Search results include an immediate "Add to favorites" toggle button.
 - **Internationalization (i18n)**: Full support for English, French, and Spanish with persistent user preferences.
 - **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, session cookies, and account management.
+- **Optimistic Auth**: Favorites render instantly from a local session flag, with background verification and a header sync spinner.
 - **Footer External Projects**: Navigation links to companion projects including Whois (`whois.louisvolant.com`), MyFilmList, FuelStats, OpenSkipass, and other web utilities.
 
 ---
