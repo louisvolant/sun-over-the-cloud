@@ -120,8 +120,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
 
     const nowSec = Math.floor(Date.now() / 1000);
     const next24Items = futureItems
-      .filter((item) => item.dt - nowSec <= 24 * 3600)
-      .slice(0, 8);
+      .filter((item) => item.dt - nowSec <= 24 * 3600);
     const next24Set = new Set(next24Items.map((i) => i.dt));
 
     if (next24Items.length > 0) {
