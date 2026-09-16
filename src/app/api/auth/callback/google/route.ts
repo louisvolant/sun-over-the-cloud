@@ -1,6 +1,5 @@
 // src/app/api/auth/callback/google/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
 import crypto from 'crypto';
 import { UsersModel } from '@/lib/models';
 import { hashPasswordArgon2 } from '@/lib/passwordUtils';
@@ -24,21 +23,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
-      code,
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: new URL('/api/auth/callback/google', request.url).toString(),
-      grant_type: 'authorization_code',
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: new URL('/api/auth/callback/google', request.url).toString(),
+        grant_type: 'authorization_code',
+      }),
     });
+    if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status}`);
+    const { access_token } = await tokenRes.json() as { access_token: string };
 
-    const { access_token } = tokenResponse.data;
-
-    const userInfo = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-
-    const { email } = userInfo.data;
+    if (!userRes.ok) throw new Error(`Userinfo fetch failed: ${userRes.status}`);
+    const { email } = await userRes.json() as { email: string };
     await connectToDatabase();
 
     let userData = await UsersModel.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
