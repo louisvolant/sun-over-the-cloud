@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Home, Search, Settings } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -13,10 +13,8 @@ import { useLanguage } from '@/context/LanguageContext';
  *
  * It exposes three actions:
  *  - Home: navigates back to the weather home page.
- *  - Search: opens the mobile search panel. The panel itself lives on the home
- *    page (close to the data it mutates). When the user is already on home we
- *    simply notify it through a custom window event; otherwise we navigate
- *    home with a `?search=open` query param that opens the panel on arrival.
+ *  - Search: navigates to the dedicated /search page (full-page search with
+ *    favorite actions, much easier to use than an overlay panel on mobile).
  *  - My Account: navigates to the account management page.
  *
  * The bar is fixed (always visible, app-like) and respects the iOS safe area
@@ -24,19 +22,7 @@ import { useLanguage } from '@/context/LanguageContext';
  */
 export default function MobileFooterNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { t } = useLanguage();
-
-  const handleSearchClick = () => {
-    if (pathname === '/') {
-      // Notify the home page to toggle its mobile search panel.
-      window.dispatchEvent(new CustomEvent('sotc:toggle-mobile-search'));
-    } else {
-      // From other pages, go home first; the home page opens the panel
-      // when it detects the `search=open` query param.
-      router.push('/?search=open');
-    }
-  };
 
   const itemClass = (isActive: boolean) =>
     `flex flex-col items-center justify-center gap-0.5 flex-1 py-2 text-[11px] font-medium transition-colors ${
@@ -58,15 +44,10 @@ export default function MobileFooterNav() {
         </Link>
 
         {/* Search */}
-        <button
-          type="button"
-          onClick={handleSearchClick}
-          className={itemClass(false)}
-          aria-label={t('footer_nav_search')}
-        >
+        <Link href="/search" className={itemClass(pathname === '/search')}>
           <Search className="w-6 h-6" />
           <span>{t('footer_nav_search')}</span>
-        </button>
+        </Link>
 
         {/* My Account */}
         <Link href="/account" className={itemClass(pathname === '/account')}>

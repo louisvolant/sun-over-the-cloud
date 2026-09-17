@@ -14,6 +14,7 @@ import {
   LAST_LOCATION_WEATHER_KEY,
 } from '@/lib/localWeatherDb';
 import { Location, WeatherData, PrecipitationData, ForecastData, CachedFavoriteLocation, FavoriteLocation } from '@/lib/types';
+import { PENDING_SEARCH_SELECTION_KEY } from '@/lib/constants';
 import WeatherDisplay from './components/WeatherDisplay';
 import ForecastDisplay from './components/ForecastDisplay';
 import GraphsDisplay from './components/GraphsDisplay';
@@ -56,9 +57,6 @@ export default function Home() {
   const touchSourceIndexRef = useRef<number | null>(null);
 
   // Mobile swipeable carousel state (logged-in users only).
-  // The search panel is hidden by default on mobile and toggled from the
-  // sticky footer navigation ("Search" icon).
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const carouselRef = useRef<LocationCarouselHandle>(null);
   // Tracks the last coordinates a selection was made for, so the carousel only
   // auto-scrolls when a *new* location is picked (not on background refreshes).
@@ -161,6 +159,23 @@ export default function Home() {
   }, [weatherData, rainFallsData, snowDepthData]);
 
   useEffect(() => {
+    // 0. Consume a pending location selection handed over by the dedicated
+    // /search page — it takes priority over the last-viewed location restore
+    // below (which would otherwise overwrite it with stale weather).
+    try {
+      const pendingRaw = sessionStorage.getItem(PENDING_SEARCH_SELECTION_KEY);
+      if (pendingRaw) {
+        sessionStorage.removeItem(PENDING_SEARCH_SELECTION_KEY);
+        const pending = JSON.parse(pendingRaw);
+        if (pending?.lat && pending?.lon) {
+          handleLocationSelect(pending, false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.debug('Failed to read pending search selection:', e);
+    }
+
     const storedFavorites = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedFavorites) {
       setCachedFavorites(JSON.parse(storedFavorites));
@@ -459,23 +474,6 @@ export default function Home() {
 
   // --- Mobile swipeable carousel (logged-in users) ---
 
-  // Listen to the footer navigation "Search" toggle. The mobile footer nav is
-  // rendered globally in layout.tsx and notifies the home page through a
-  // custom window event.
-  useEffect(() => {
-    const handler = () => setIsMobileSearchOpen((prev) => !prev);
-    window.addEventListener('sotc:toggle-mobile-search', handler);
-    return () => window.removeEventListener('sotc:toggle-mobile-search', handler);
-  }, []);
-
-  // Open the mobile search panel when arriving with ?search=open (e.g. the
-  // Search footer icon was pressed from another page).
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('search') === 'open') {
-      setIsMobileSearchOpen(true);
-    }
-  }, []);
-
   /**
    * Slides for the mobile carousel: one per saved favorite, in the user's
    * custom order. The last selected/searched location (current conditions
@@ -511,10 +509,11 @@ export default function Home() {
     return slides;
   }, [isAuthenticated, userFavorites, weatherData]);
 
-  // When a brand new location is selected (e.g. from the mobile search panel),
-  // bring its slide into view: the "selected location" slide (index 0) or the
-  // matching favorite slide. Guarded by a coordinate ref so background
-  // refreshes of the same location never yank the carousel around.
+  // Bring the matching slide into view when a brand new location is selected
+  // (e.g. coming back from the dedicated /search page): the "selected
+  // location" slide (index 0) or the matching favorite slide. Guarded by a
+  // coordinate ref so background refreshes of the same location never yank
+  // the carousel around.
   useEffect(() => {
     if (!isAuthenticated || !weatherData) return;
     const coordKey = `${weatherData.coord.lat},${weatherData.coord.lon}`;
@@ -530,12 +529,6 @@ export default function Home() {
     // Without a matching favorite, the selected location sits on slide 0.
     carouselRef.current?.scrollToIndex(favIndex === -1 ? 0 : favIndex);
   }, [isAuthenticated, weatherData, userFavorites]);
-
-  const handleMobileLocationSelect = useCallback((loc: Location) => {
-    // Close the panel first so the carousel is visible while data loads.
-    setIsMobileSearchOpen(false);
-    handleLocationSelect(loc, false);
-  }, [handleLocationSelect]);
 
   return (
     <>
@@ -561,25 +554,6 @@ export default function Home() {
               <Star className="w-8 h-8 text-amber-400 fill-amber-300 mb-3" />
               <p className="italic mb-2">{t('no_favorites_yet')}</p>
               <p className="text-sm">{t('mobile_search_hint')}</p>
-            </div>
-          )}
-
-          {/* Mobile search panel, toggled from the footer nav Search icon */}
-          {isMobileSearchOpen && (
-            <div
-              className="md:hidden fixed inset-x-0 bottom-[calc(3.6rem+var(--safe-bottom))] z-30 px-3 pb-3 animate-fade-in"
-            >
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-[60dvh] overflow-y-auto">
-                <SearchDisplay
-                  city={city}
-                  setCity={setCity}
-                  onLocationSelect={handleMobileLocationSelect}
-                  isSearching={isSearching}
-                  setIsSearching={setIsSearching}
-                  error={error}
-                  setError={setError}
-                />
-              </div>
             </div>
           )}
         </div>

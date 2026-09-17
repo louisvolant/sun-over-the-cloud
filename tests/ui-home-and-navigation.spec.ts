@@ -97,6 +97,21 @@ test.describe('UI Navigation and Interactions', () => {
     await expect(footer).toBeVisible();
   });
 
+  test('Mobile footer Search action navigates to the dedicated search page', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/');
+
+    // Tap the Search icon in the sticky footer navigation
+    const footerSearch = page.locator('nav a[href="/search"]');
+    await expect(footerSearch).toBeVisible();
+    await footerSearch.click();
+
+    // The dedicated search page renders with its title and search input
+    await expect(page).toHaveURL(/\/search$/);
+    await expect(page.getByText(/search a location/i)).toBeVisible();
+    await expect(page.locator('input[type="text"]')).toBeVisible();
+  });
+
   test('Searching location displays an add-to-favorites action button on search result', async ({ page }) => {
     await page.goto('/');
     const searchInput = page.locator('input[type="text"]');

@@ -90,6 +90,8 @@
   "new_city_title": "New city",
   "no_favorites_yet": "No favorites yet. Add some below!",
   "mobile_search_hint": "Tap the search icon in the footer below to add your first location.",
+  "search_page_title": "Search a location",
+  "search_page_hint": "Tap the star next to a result to add it to your favorites.",
   "location_carousel_label": "Swipe between your locations",
   "loading_weather_data": "Loading weather...",
   "location_name_table_header": "Location Name",

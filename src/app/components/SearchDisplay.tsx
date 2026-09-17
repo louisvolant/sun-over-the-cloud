@@ -13,6 +13,12 @@ interface SearchDisplayProps {
   setIsSearching: (isSearching: boolean) => void;
   error: string | null;
   setError: (error: string | null) => void;
+  /**
+   * Dev comment: optional element rendered on the right of each result row
+   * (e.g. an "add to favorites" action on the dedicated /search page).
+   * Clicks inside it are stopped from propagating to the row selection.
+   */
+  renderResultAction?: (location: Location) => React.ReactNode;
 }
 
 const DEBOUNCE_DELAY = 500; // Milliseconds for debounce
@@ -25,6 +31,7 @@ export default function SearchDisplay({
   setIsSearching,
   error,
   setError,
+  renderResultAction,
 }: SearchDisplayProps) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [noResults, setNoResults] = useState(false);
@@ -234,12 +241,22 @@ export default function SearchDisplay({
             <div
               key={index}
               onClick={() => onLocationSelect(location)} // Use the passed callback
-              className="p-2 mb-2 bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-200 flex items-center"
+              className="p-2 mb-2 bg-gray-200 dark:bg-gray-700 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-200 flex items-center justify-between gap-2"
             >
-              {location.country && (
-                <span className={`fi fi-${location.country.toLowerCase()} mr-2 rounded`}></span>
+              <div className="flex items-center min-w-0">
+                {location.country && (
+                  <span className={`fi fi-${location.country.toLowerCase()} mr-2 rounded`}></span>
+                )}
+                <span className="truncate">
+                  {location.name}, {location.country} {location.state ? `(${location.state})` : ''}
+                </span>
+              </div>
+              {renderResultAction && (
+                // Stop the click so tapping the action does not also select the row
+                <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                  {renderResultAction(location)}
+                </div>
               )}
-              {location.name}, {location.country} {location.state ? `(${location.state})` : ''}
             </div>
           ))}
         </div>
