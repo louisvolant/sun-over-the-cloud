@@ -115,6 +115,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
 - `wrangler.toml` serves `.open-next/worker.js` with static assets from `.open-next/assets` (`ASSETS` binding), `compatibility_date = "2025-04-01"` and `nodejs_compat` flag. `keep_vars = true` preserves dashboard-managed variables on each deploy.
 - `next.config.js` sets long-lived immutable caching for `/_next/static/*` and `no-cache, no-store, must-revalidate` for all other pages.
 - Password hashing uses `hash-wasm` (pure WebAssembly argon2id) instead of native `argon2`, keeping the same PHC-encoded `$argon2id$v=19$` format so existing password hashes remain verifiable.
+- **No axios in API routes**: outbound HTTP calls from API routes must use the native `fetch` — axios relies on the Node.js http stack and can hang on Cloudflare Workers until the runtime cancels the request ("Worker's code had hung").
 
 ### Environment Variables
 

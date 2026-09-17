@@ -1,6 +1,5 @@
 // src/app/api/search/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
 import { LocationSearchModel } from '@/lib/models';
 import connectToDatabase from '@/lib/mongoose';
 
@@ -28,16 +27,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await axios.get(OPEN_METEO_GEOCODING_API, {
-      params: {
-        name: city,
-        count: 5,
-        language: lang,
-        format: 'json',
-      },
+    // Dev comment: use native fetch instead of axios. Axios relies on the
+    // Node.js http stack and can make the API route hang on Cloudflare
+    // Workers (the runtime then cancels the request with "Worker's code had
+    // hung"). Same root cause already fixed for the Google OAuth callback —
+    // all API routes must use fetch for outbound HTTP calls.
+    const params = new URLSearchParams({
+      name: city,
+      count: '5',
+      language: lang,
+      format: 'json',
     });
+    const response = await fetch(`${OPEN_METEO_GEOCODING_API}?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`Geocoding API responded with status ${response.status}`);
+    }
+    const data = await response.json();
 
-    const rawResults = response.data?.results || [];
+    const rawResults = data?.results || [];
     const formattedLocations = rawResults.map((item: any) => ({
       name: item.name,
       lat: item.latitude,
