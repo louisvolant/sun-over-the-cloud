@@ -2,6 +2,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import Footer from './components/Footer';
 import BottomControls from './components/BottomControls';
+import MobileFooterNav from './components/MobileFooterNav';
 import { ThemeProvider } from './components/ThemeProvider';
 import HeaderButtons from './components/HeaderButtons';
 import { AuthProvider } from '@/context/AuthContext';
@@ -84,6 +85,10 @@ export default function RootLayout({
               </main>
               <BottomControls />
               <Footer />
+              {/* Mobile-only sticky footer navigation (Home / Search / My Account).
+                  A spacer keeps the page footer content from being hidden behind it. */}
+              <MobileFooterNav />
+              <div className="h-16 md:hidden" aria-hidden="true" />
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -19,6 +19,7 @@ A progressive weather web application designed for exploring live meteorological
     - **iOS Input Focus Stability**: Enforces minimum 16px font sizing on inputs and selects in PWA mode to prevent iOS Safari from automatically zooming into form fields.
   - **Preserved Browser Accessibility**: Outside of PWA standalone mode, standard desktop browser zoom shortcuts and pinch gestures remain fully operational for accessibility.
   - **Single-Line Header**: Seamless horizontal navigation on mobile. When authenticated, the account action compresses into a symbol button (`Settings` gear on Home, `Home` icon on Account).
+  - **Mobile Sticky Footer Navigation**: A fixed bottom navigation bar on every page (mobile only) with three actions: **Home** (back to the weather page), **Search** (opens the mobile search panel, or navigates home with the panel open when on another page), and **My Account**. The bar respects the iOS safe area and a spacer keeps the page footer content from being hidden behind it.
   - **Mobile Bottom Bar**: Language selector and logout button positioned cleanly at the bottom of the page before the footer.
 - **Instant Visual Load via Local Database (IndexedDB & PWA Stale-While-Revalidate)**:
   - Local IndexedDB database (`sun_over_the_cloud_pwa_db`) stores weather snapshots, multi-day forecasts, and user favorites.
