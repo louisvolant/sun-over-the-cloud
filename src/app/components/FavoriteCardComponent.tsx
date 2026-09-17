@@ -1,21 +1,13 @@
 // src/app/components/FavoriteCardComponent.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { FavoriteLocation, WeatherData, ForecastData, PrecipitationData } from '@/lib/types';
-import { getWeatherAndSnow, getForecast } from '@/lib/weather_api';
-import {
-  getLocalWeather,
-  saveLocalWeather,
-  getCoordKey,
-  getAdjustedWeatherForNow,
-} from '@/lib/localWeatherDb';
+import { useEffect } from 'react';
+import { FavoriteLocation } from '@/lib/types';
 import { weatherIconMap, weatherIconColorMap } from '@/lib/weatherIconMap';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from './ThemeProvider';
-import WeatherDisplay from './WeatherDisplay';
-import ForecastDisplay from './ForecastDisplay';
-import GraphsDisplay from './GraphsDisplay';
+import useLocationWeather from '@/hooks/useLocationWeather';
+import LocationWeatherContent from './LocationWeatherContent';
 import { Trash2, ChevronDown, ChevronUp, Loader2, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface FavoriteCardComponentProps {
@@ -58,155 +50,38 @@ export default function FavoriteCardComponent({
   const { darkMode } = useTheme();
   const { t, tWeather } = useLanguage();
 
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
-  const [rainFallsData, setRainFallsData] = useState<number | null>(null);
-  const [snowDepthData, setSnowDepthData] = useState<number | null>(null);
-  const [isLoadingWeather, setIsLoadingWeather] = useState(true);
+  // All weather/forecast fetching and caching for this favorite is delegated
+  // to the shared useLocationWeather hook (also used by the mobile carousel).
+  const weatherState = useLocationWeather({
+    latitude: favorite.latitude,
+    longitude: favorite.longitude,
+    locationName: favorite.location_name,
+    countryCode: favorite.country_code,
+  });
+  const {
+    weatherData,
+    rainFallsData,
+    snowDepthData,
+    isLoadingWeather,
+    forecastData,
+    isLoadingForecast,
+    forecastError,
+    precipitationData,
+    setPrecipitationData,
+    isLoadingPrecipitation,
+    setIsLoadingPrecipitation,
+    showGraphs,
+    setShowGraphs,
+    graphsError,
+    maybeFetchForecast,
+  } = weatherState;
 
-  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
-  const [isLoadingForecast, setIsLoadingForecast] = useState(false);
-  const [forecastError, setForecastError] = useState<string | null>(null);
-
-  const [precipitationData, setPrecipitationData] = useState<PrecipitationData[]>([]);
-  const [isLoadingPrecipitation, setIsLoadingPrecipitation] = useState(false);
-  const [showGraphs, setShowGraphs] = useState(false);
-  const [graphsError, setGraphsError] = useState<string | null>(null);
-
-  const hasFetchedForecastRef = useRef(false);
-  const forecastDataRef = useRef<ForecastData | null>(null);
-  const coordKey = getCoordKey(favorite.latitude, favorite.longitude);
-
-  // 1. Check local IndexedDB immediately on mount for instantaneous rendering
+  // 2. Lazily fetch forecast data when card is expanded if not yet available
   useEffect(() => {
-    let isMounted = true;
-
-    getLocalWeather(coordKey)
-      .then((cached) => {
-        if (!isMounted || !cached) return;
-        const adjusted = getAdjustedWeatherForNow(cached);
-        if (adjusted.weather) {
-          setWeatherData(adjusted.weather);
-          setRainFallsData(adjusted.rainFalls);
-          setSnowDepthData(adjusted.snowDepth);
-          setIsLoadingWeather(false);
-        }
-        if (adjusted.forecast) {
-          setForecastData(adjusted.forecast);
-          forecastDataRef.current = adjusted.forecast;
-        }
-      })
-      .catch((err) => {
-        console.debug('Error reading favorite from local DB:', err);
-      });
-
-    // Background fetch for fresh live weather AND forecast in parallel
-    const fetchLiveWeatherAndForecast = async () => {
-      try {
-        const [weatherRes, forecastRes] = await Promise.allSettled([
-          getWeatherAndSnow(favorite.latitude, favorite.longitude),
-          getForecast(favorite.latitude.toString(), favorite.longitude.toString()),
-        ]);
-
-        if (!isMounted) return;
-
-        let wData: WeatherData | null = null;
-        let rFalls: number | null = null;
-        let sDepth: number | null = null;
-        let fData: ForecastData | null = null;
-
-        if (weatherRes.status === 'fulfilled' && weatherRes.value?.weather) {
-          wData = weatherRes.value.weather as WeatherData;
-          wData.name = favorite.location_name;
-          wData.country = favorite.country_code;
-          rFalls = weatherRes.value.rainFalls;
-          sDepth = weatherRes.value.snowDepth;
-          setWeatherData(wData);
-          setRainFallsData(rFalls);
-          setSnowDepthData(sDepth);
-          setIsLoadingWeather(false);
-        }
-
-        if (forecastRes.status === 'fulfilled' && forecastRes.value) {
-          fData = forecastRes.value;
-          setForecastData(fData);
-          forecastDataRef.current = fData;
-          hasFetchedForecastRef.current = true;
-        }
-
-        // Update IndexedDB with both live weather and forecast
-        saveLocalWeather(coordKey, {
-          location: {
-            name: favorite.location_name,
-            country: favorite.country_code,
-            lat: favorite.latitude,
-            lon: favorite.longitude,
-          },
-          weather: wData,
-          rainFalls: rFalls,
-          snowDepth: sDepth,
-          forecast: fData || forecastDataRef.current,
-        }).catch((saveErr) => console.debug('Failed saving favorite to local DB:', saveErr));
-      } catch (err) {
-        console.error('Error fetching favorite data:', err);
-      } finally {
-        if (isMounted) {
-          setIsLoadingWeather(false);
-        }
-      }
-    };
-
-    fetchLiveWeatherAndForecast();
-    return () => {
-      isMounted = false;
-    };
-  }, [coordKey, favorite.latitude, favorite.longitude, favorite.location_name, favorite.country_code]);
-
-  // 2. Fallback fetch forecast data when card is expanded if not yet available
-  const fetchForecast = useCallback(async () => {
-    if (forecastDataRef.current || hasFetchedForecastRef.current || isLoadingForecast) return;
-    try {
-      if (!forecastData) {
-        setIsLoadingForecast(true);
-      }
-      setForecastError(null);
-      const data = await getForecast(
-        favorite.latitude.toString(),
-        favorite.longitude.toString()
-      );
-      setForecastData(data);
-      forecastDataRef.current = data;
-      hasFetchedForecastRef.current = true;
-
-      // Update local IndexedDB with fresh forecast
-      if (weatherData) {
-        saveLocalWeather(coordKey, {
-          location: {
-            name: favorite.location_name,
-            country: favorite.country_code,
-            lat: favorite.latitude,
-            lon: favorite.longitude,
-          },
-          weather: weatherData,
-          rainFalls: rainFallsData,
-          snowDepth: snowDepthData,
-          forecast: data,
-        }).catch((err) => console.debug('Failed updating forecast in local DB:', err));
-      }
-    } catch (err) {
-      console.error('Error fetching favorite forecast:', err);
-      if (!forecastData) {
-        setForecastError(t('failed_to_fetch_forecast'));
-      }
-    } finally {
-      setIsLoadingForecast(false);
+    if (isExpanded) {
+      maybeFetchForecast();
     }
-  }, [favorite.latitude, favorite.longitude, isLoadingForecast, forecastData, weatherData, coordKey, rainFallsData, snowDepthData, favorite.location_name, favorite.country_code, t]);
-
-  useEffect(() => {
-    if (isExpanded && !forecastData && !hasFetchedForecastRef.current) {
-      fetchForecast();
-    }
-  }, [isExpanded, forecastData, fetchForecast]);
+  }, [isExpanded, maybeFetchForecast]);
 
   const handleHeaderClick = () => {
     // When in organizing mode, avoid collapsing/expanding so reordering is smooth
@@ -364,55 +239,26 @@ export default function FavoriteCardComponent({
       {/* Expanded Forecast Details (only when expanded and not in organizing mode) */}
       {isExpanded && !isOrganizing && (
         <div className="border-t border-gray-200/80 dark:border-gray-700/80 px-1.5 py-3 sm:px-5 sm:py-5 bg-gray-50/50 dark:bg-gray-900/40 rounded-b-xl">
-          {/* Detailed Current Weather Conditions */}
-          {weatherData && (
-            <WeatherDisplay
-              weatherData={weatherData}
-              rainFallsData={rainFallsData}
-              snowDepthData={snowDepthData}
-            />
-          )}
-
-          {/* Forecast Section */}
-          {isLoadingForecast && !forecastData ? (
-            <div className="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
-              <Loader2 className="w-6 h-6 animate-spin mr-2 text-blue-500" />
-              <span>{t('loading_forecast')}</span>
-            </div>
-          ) : (
-            <>
-              {forecastError && !forecastData && (
-                <div className="text-red-500 text-sm mb-4 text-center">{forecastError}</div>
-              )}
-              {forecastData && (
-                <ForecastDisplay
-                  weatherData={weatherData}
-                  forecastData={forecastData}
-                  setForecastData={setForecastData}
-                  setError={setForecastError}
-                />
-              )}
-            </>
-          )}
-
-          {/* Graphs Section (keeps button to view monthly graphs) */}
-          {weatherData && (
-            <>
-              {graphsError && (
-                <div className="text-red-500 text-sm mb-4 text-center">{graphsError}</div>
-              )}
-              <GraphsDisplay
-                weatherData={weatherData}
-                precipitationData={precipitationData}
-                setPrecipitationData={setPrecipitationData}
-                isLoadingPrecipitation={isLoadingPrecipitation}
-                setIsLoadingPrecipitation={setIsLoadingPrecipitation}
-                showGraphs={showGraphs}
-                setShowGraphs={setShowGraphs}
-                setError={setGraphsError}
-              />
-            </>
-          )}
+          {/* Shared per-location weather view (current conditions, forecast, graphs) */}
+          <LocationWeatherContent
+            weatherData={weatherData}
+            rainFallsData={rainFallsData}
+            snowDepthData={snowDepthData}
+            isLoadingWeather={isLoadingWeather}
+            forecastData={forecastData}
+            setForecastData={weatherState.setForecastData}
+            isLoadingForecast={isLoadingForecast}
+            forecastError={forecastError}
+            setForecastError={weatherState.setForecastError}
+            precipitationData={precipitationData}
+            setPrecipitationData={setPrecipitationData}
+            isLoadingPrecipitation={isLoadingPrecipitation}
+            setIsLoadingPrecipitation={setIsLoadingPrecipitation}
+            showGraphs={showGraphs}
+            setShowGraphs={setShowGraphs}
+            graphsError={graphsError}
+            setGraphsError={weatherState.setGraphsError}
+          />
         </div>
       )}
     </div>

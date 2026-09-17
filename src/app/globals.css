@@ -64,6 +64,15 @@
   padding-bottom: var(--safe-bottom);
 }
 
+/* Hide scrollbars while keeping scroll functionality (used by the mobile
+   swipeable location carousel so the snap track stays visually clean). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility transition-all {
   transition: all 0.3s ease;
 }

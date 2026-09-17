@@ -20,6 +20,11 @@ A progressive weather web application designed for exploring live meteorological
   - **Preserved Browser Accessibility**: Outside of PWA standalone mode, standard desktop browser zoom shortcuts and pinch gestures remain fully operational for accessibility.
   - **Single-Line Header**: Seamless horizontal navigation on mobile. When authenticated, the account action compresses into a symbol button (`Settings` gear on Home, `Home` icon on Account).
   - **Mobile Sticky Footer Navigation**: A fixed bottom navigation bar on every page (mobile only) with three actions: **Home** (back to the weather page), **Search** (opens the mobile search panel, or navigates home with the panel open when on another page), and **My Account**. The bar respects the iOS safe area and a spacer keeps the page footer content from being hidden behind it.
+  - **Swipeable Location Carousel (Mobile, Logged-In)**: On mobile, the home page is centered on a single location: a full-height weather view (current conditions, forecast and on-demand graphs — the same view as an expanded favorite card) that can be swiped horizontally to switch between all saved locations, with page indicator dots for quick jumps.
+    - Built on native CSS scroll-snap (no carousel dependency); each slide scrolls vertically while swiping switches slides horizontally.
+    - Every slide owns its data through the shared `useLocationWeather` hook: instant render from the IndexedDB cache, then transparent background refresh (same stale-while-revalidate lifecycle as favorite cards).
+    - The last selected/searched location appears as an extra first slide while it does not match any favorite, and a fresh search selection automatically brings its slide into view.
+    - Search lives in a collapsible panel above the sticky footer, toggled from the footer's Search icon (a `?search=open` query param opens it when arriving from another page).
   - **Mobile Bottom Bar**: Language selector and logout button positioned cleanly at the bottom of the page before the footer.
 - **Instant Visual Load via Local Database (IndexedDB & PWA Stale-While-Revalidate)**:
   - Local IndexedDB database (`sun_over_the_cloud_pwa_db`) stores weather snapshots, multi-day forecasts, and user favorites.
@@ -27,7 +32,7 @@ A progressive weather web application designed for exploring live meteorological
   - **Smart Expiration Filtering**: Expired past forecast hours from previous days or earlier today are automatically filtered out. When opening after an interval, current conditions are seamlessly projected from the forecast prediction for the current hour, preventing outdated historical metrics from being displayed.
   - **Transparent Background Synchronization**: Fresh meteorological observations and multi-day forecasts are fetched in the background from MET Norway, smoothly updating the interface and local IndexedDB store.
 - **Favorite Locations on Home**:
-  - When logged in, favorite locations are displayed as cards directly above the search bar.
+  - When logged in, favorite locations are displayed as cards directly above the search bar (desktop; on mobile they are presented as the swipeable carousel described above).
   - Collapsed view displays location name, country flag, current temperature, and weather icon/condition with a quick un-favorite action button.
   - Clicking a favorite card smoothly expands it with lazy-loaded full-day and multi-day forecasts, while keeping monthly graphs accessible on-demand via a button.
   - **Drag & Drop Organization**: An "Organize" button next to "My Favorite Locations" activates reorder mode, enabling favorites to be repositioned via desktop drag-and-drop, mobile touch gestures, or accessible up/down controls with instantaneous IndexedDB persistence and background backend synchronization.

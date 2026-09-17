@@ -8,7 +8,7 @@ test.describe('UI Navigation and Interactions', () => {
     const searchInput = page.locator('input[type="text"]');
     await expect(searchInput).toBeVisible();
 
-    const searchButton = page.locator('button', { hasText: /search/i });
+    const searchButton = page.locator('button', { hasText: /search/i }).first();
     await expect(searchButton).toBeVisible();
   });
 
@@ -33,7 +33,9 @@ test.describe('UI Navigation and Interactions', () => {
     const searchInput = page.locator('input[type="text"]');
     await searchInput.fill('Nice');
 
-    const searchButton = page.locator('button', { hasText: /search/i });
+    // `.first()` targets the main search button; the mobile footer nav also
+    // contains a Search action (hidden on desktop but present in the DOM).
+    const searchButton = page.locator('button', { hasText: /search/i }).first();
     await searchButton.click();
 
     // Wait for the geocoding dropdown result to appear
@@ -99,7 +101,7 @@ test.describe('UI Navigation and Interactions', () => {
     await page.goto('/');
     const searchInput = page.locator('input[type="text"]');
     await searchInput.fill('Paris');
-    const searchButton = page.locator('button', { hasText: /search/i });
+    const searchButton = page.locator('button', { hasText: /search/i }).first();
     await searchButton.click();
 
     const resultItem = page.locator('div.cursor-pointer', { hasText: /Paris/i }).first();

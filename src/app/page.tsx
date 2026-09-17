@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getWeatherAndSnow, fetchCachedFavorites, getForecast } from "@/lib/weather_api";
 import { getFavorites, addFavorite, removeFavorite, updateFavoriteOrder } from "@/lib/account_api";
 import {
@@ -20,6 +20,7 @@ import GraphsDisplay from './components/GraphsDisplay';
 import SearchDisplay from './components/SearchDisplay';
 import FavoriteCardComponent from './components/FavoriteCardComponent';
 import LoginModal from './components/LoginModal';
+import LocationCarousel, { LocationCarouselHandle, CarouselLocation } from './components/LocationCarousel';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { Star, Loader2, ArrowUpDown, PlusCircle, X } from 'lucide-react';
@@ -53,6 +54,15 @@ export default function Home() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const touchSourceIndexRef = useRef<number | null>(null);
+
+  // Mobile swipeable carousel state (logged-in users only).
+  // The search panel is hidden by default on mobile and toggled from the
+  // sticky footer navigation ("Search" icon).
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const carouselRef = useRef<LocationCarouselHandle>(null);
+  // Tracks the last coordinates a selection was made for, so the carousel only
+  // auto-scrolls when a *new* location is picked (not on background refreshes).
+  const lastSelectedCoordRef = useRef<string | null>(null);
 
   const { t } = useLanguage();
 
@@ -447,8 +457,136 @@ export default function Home() {
     } catch {}
   }, []);
 
+  // --- Mobile swipeable carousel (logged-in users) ---
+
+  // Listen to the footer navigation "Search" toggle. The mobile footer nav is
+  // rendered globally in layout.tsx and notifies the home page through a
+  // custom window event.
+  useEffect(() => {
+    const handler = () => setIsMobileSearchOpen((prev) => !prev);
+    window.addEventListener('sotc:toggle-mobile-search', handler);
+    return () => window.removeEventListener('sotc:toggle-mobile-search', handler);
+  }, []);
+
+  // Open the mobile search panel when arriving with ?search=open (e.g. the
+  // Search footer icon was pressed from another page).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('search') === 'open') {
+      setIsMobileSearchOpen(true);
+    }
+  }, []);
+
+  /**
+   * Slides for the mobile carousel: one per saved favorite, in the user's
+   * custom order. The last selected/searched location (current conditions
+   * block on desktop) is shown as an extra first slide while it does not
+   * match any favorite, so a fresh search result is never invisible on mobile.
+   */
+  const carouselLocations = useMemo<CarouselLocation[]>(() => {
+    if (!isAuthenticated) return [];
+    const slides: CarouselLocation[] = userFavorites.map((fav) => ({
+      key: `fav-${fav._id}`,
+      name: fav.location_name,
+      countryCode: fav.country_code,
+      lat: fav.latitude,
+      lon: fav.longitude,
+    }));
+
+    if (weatherData) {
+      const matchesFavorite = slides.some(
+        (slide) =>
+          Math.abs(slide.lat - weatherData.coord.lat) < 0.05 &&
+          Math.abs(slide.lon - weatherData.coord.lon) < 0.05
+      );
+      if (!matchesFavorite) {
+        slides.unshift({
+          key: 'selected-location',
+          name: weatherData.name,
+          countryCode: weatherData.country,
+          lat: weatherData.coord.lat,
+          lon: weatherData.coord.lon,
+        });
+      }
+    }
+    return slides;
+  }, [isAuthenticated, userFavorites, weatherData]);
+
+  // When a brand new location is selected (e.g. from the mobile search panel),
+  // bring its slide into view: the "selected location" slide (index 0) or the
+  // matching favorite slide. Guarded by a coordinate ref so background
+  // refreshes of the same location never yank the carousel around.
+  useEffect(() => {
+    if (!isAuthenticated || !weatherData) return;
+    const coordKey = `${weatherData.coord.lat},${weatherData.coord.lon}`;
+    const isNewSelection = lastSelectedCoordRef.current !== coordKey;
+    lastSelectedCoordRef.current = coordKey;
+    if (!isNewSelection) return;
+
+    const favIndex = userFavorites.findIndex(
+      (f) =>
+        Math.abs(f.latitude - weatherData.coord.lat) < 0.05 &&
+        Math.abs(f.longitude - weatherData.coord.lon) < 0.05
+    );
+    // Without a matching favorite, the selected location sits on slide 0.
+    carouselRef.current?.scrollToIndex(favIndex === -1 ? 0 : favIndex);
+  }, [isAuthenticated, weatherData, userFavorites]);
+
+  const handleMobileLocationSelect = useCallback((loc: Location) => {
+    // Close the panel first so the carousel is visible while data loads.
+    setIsMobileSearchOpen(false);
+    handleLocationSelect(loc, false);
+  }, [handleLocationSelect]);
+
   return (
-    <div className="flex justify-center items-start py-8">
+    <>
+      {/* Mobile logged-in layout: a single full-height weather view per
+          location, horizontally swipeable between all saved locations.
+          Search lives in a collapsible panel triggered from the sticky
+          footer navigation. The height accounts for the app header (~4.25rem
+          incl. safe area) and the mobile footer nav (~3rem + safe area). */}
+      {isAuthenticated && (
+        <div
+          className="md:hidden flex flex-col"
+          style={{ height: 'calc(100dvh - 7.25rem - var(--safe-top) - var(--safe-bottom))' }}
+        >
+          {isLoadingUserFavorites && userFavorites.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-6 h-6 animate-spin mr-2 text-blue-500" />
+              <span>{t('loading_favorites')}</span>
+            </div>
+          ) : carouselLocations.length > 0 ? (
+            <LocationCarousel ref={carouselRef} locations={carouselLocations} />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 text-gray-500 dark:text-gray-400">
+              <Star className="w-8 h-8 text-amber-400 fill-amber-300 mb-3" />
+              <p className="italic mb-2">{t('no_favorites_yet')}</p>
+              <p className="text-sm">{t('mobile_search_hint')}</p>
+            </div>
+          )}
+
+          {/* Mobile search panel, toggled from the footer nav Search icon */}
+          {isMobileSearchOpen && (
+            <div
+              className="md:hidden fixed inset-x-0 bottom-[calc(3.6rem+var(--safe-bottom))] z-30 px-3 pb-3 animate-fade-in"
+            >
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-[60dvh] overflow-y-auto">
+                <SearchDisplay
+                  city={city}
+                  setCity={setCity}
+                  onLocationSelect={handleMobileLocationSelect}
+                  isSearching={isSearching}
+                  setIsSearching={setIsSearching}
+                  error={error}
+                  setError={setError}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Desktop layout (and anonymous mobile users) — unchanged */}
+      <div className={`justify-center items-start py-8 ${isAuthenticated ? 'hidden md:flex' : 'flex'}`}>
       <div className="w-full max-w-4xl mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg mb-8">
         {/* User Favorite Locations Cards (when authenticated, placed above search) */}
         {isAuthenticated && (
@@ -601,6 +739,7 @@ export default function Home() {
 
         <LoginModal isOpen={isLoginModalOpen} setIsOpen={setIsLoginModalOpen} />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
