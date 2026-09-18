@@ -116,6 +116,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
 - `next.config.js` sets long-lived immutable caching for `/_next/static/*` and `no-cache, no-store, must-revalidate` for all other pages.
 - Password hashing uses `hash-wasm` (pure WebAssembly argon2id) instead of native `argon2`, keeping the same PHC-encoded `$argon2id$v=19$` format so existing password hashes remain verifiable.
 - **No axios in API routes**: outbound HTTP calls from API routes must use the native `fetch` — axios relies on the Node.js http stack and can hang on Cloudflare Workers until the runtime cancels the request ("Worker's code had hung").
+- **Time-bounded MongoDB access**: `connectToDatabase()` races the Atlas connection against a hard timeout (`CONNECT_TIMEOUT_MS`, 5s) and sets driver-level `serverSelectionTimeoutMS` / `connectTimeoutMS`, because the MongoDB driver's TCP sockets never settle on workerd. Optional Database lookups/saves (e.g. the `/api/search` geocoding cache) additionally use the shared `withTimeout()` helper from `src/lib/timeout.ts` (1.5s on the search path) so a slow, hanging, or unreachable database always falls back to the live upstream call instead of stalling the request.
 
 ### Environment Variables
 

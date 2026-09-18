@@ -2,8 +2,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LocationSearchModel } from '@/lib/models';
 import connectToDatabase from '@/lib/mongoose';
+import { withTimeout } from '@/lib/timeout';
 
 const OPEN_METEO_GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
+// MongoDB cache operations on the search path are best-effort only: if the
+// database is slow or unreachable (e.g. on Cloudflare Workers, where the Mongo
+// driver cannot open TCP sockets), the route falls back to the live geocoding
+// API instead of letting the request hang until the runtime kills it.
+const CACHE_TIMEOUT_MS = 1_500;
+
+interface GeocodingResult {
+  name: string;
+  latitude: number;
+  longitude: number;
+  country_code: string;
+  admin1?: string | null;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -14,24 +32,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'City parameter is required' }, { status: 400 });
   }
 
-  // Try checking cache if MongoDB is available
+  // Best-effort cache lookup. connectToDatabase() is internally bounded too,
+  // and the whole lookup is raced against CACHE_TIMEOUT_MS so a hanging
+  // database can never delay the live geocoding fallback.
   try {
-    await connectToDatabase();
-    const existingData = await LocationSearchModel.findOne({ city, lang });
+    await withTimeout(connectToDatabase(), CACHE_TIMEOUT_MS);
+    const existingData = await withTimeout(
+      LocationSearchModel.findOne({ city, lang }),
+      CACHE_TIMEOUT_MS,
+    );
     if (existingData) {
       return NextResponse.json(existingData.data);
     }
-  } catch (dbErr: any) {
-    // If DB is unreachable or not configured, proceed directly to live API fetch
-    console.warn('MongoDB cache lookup skipped or failed in /api/search:', dbErr.message);
+  } catch (dbErr: unknown) {
+    // If the DB is unreachable, not configured, or too slow, proceed directly
+    // to the live API fetch instead of failing the whole request.
+    console.warn('MongoDB cache lookup skipped or failed in /api/search:', errorMessage(dbErr));
   }
 
   try {
-    // Dev comment: use native fetch instead of axios. Axios relies on the
-    // Node.js http stack and can make the API route hang on Cloudflare
-    // Workers (the runtime then cancels the request with "Worker's code had
-    // hung"). Same root cause already fixed for the Google OAuth callback —
-    // all API routes must use fetch for outbound HTTP calls.
+    // Use native fetch instead of axios. Axios relies on the Node.js http stack
+    // and can make the API route hang on Cloudflare Workers (the runtime then
+    // cancels the request with "Worker's code had hung"). Same root cause
+    // already fixed for the Google OAuth callback — all API routes must use
+    // fetch for outbound HTTP calls.
     const params = new URLSearchParams({
       name: city,
       count: '5',
@@ -45,7 +69,7 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
 
     const rawResults = data?.results || [];
-    const formattedLocations = rawResults.map((item: any) => ({
+    const formattedLocations = rawResults.map((item: GeocodingResult) => ({
       name: item.name,
       lat: item.latitude,
       lon: item.longitude,
@@ -54,21 +78,25 @@ export async function GET(request: NextRequest) {
       location_name: item.admin1 ? `${item.name}, ${item.admin1}` : item.name,
     }));
 
-    // Best-effort cache save
+    // Best-effort cache save, also time-bounded so a slow DB never delays the
+    // response the client is waiting on.
     try {
-      const newDoc = new LocationSearchModel({
-        city,
-        lang,
-        data: formattedLocations,
-      });
-      await newDoc.save();
+      await withTimeout(connectToDatabase(), CACHE_TIMEOUT_MS);
+      await withTimeout(
+        new LocationSearchModel({
+          city,
+          lang,
+          data: formattedLocations,
+        }).save(),
+        CACHE_TIMEOUT_MS,
+      );
     } catch {
-      // Ignore DB save errors when database is unavailable
+      // Ignore DB save errors/timeouts when the database is unavailable/slow.
     }
 
     return NextResponse.json(formattedLocations);
-  } catch (error: any) {
-    console.error('Error in /api/search:', error.message);
+  } catch (error: unknown) {
+    console.error('Error in /api/search:', errorMessage(error));
     return NextResponse.json({ error: 'Failed to fetch location data' }, { status: 500 });
   }
 }
