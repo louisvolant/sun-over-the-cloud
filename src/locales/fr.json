@@ -92,6 +92,7 @@
   "mobile_search_hint": "Touchez l'icône de recherche dans le pied de page pour ajouter votre première localisation.",
   "search_page_title": "Rechercher une localisation",
   "search_page_hint": "Touchez l'étoile à côté d'un résultat pour l'ajouter à vos favoris.",
+  "clear_search": "Effacer la recherche",
   "location_carousel_label": "Balayez entre vos localisations",
   "loading_weather_data": "Chargement de la météo...",
   "location_name_table_header": "Nom du lieu",

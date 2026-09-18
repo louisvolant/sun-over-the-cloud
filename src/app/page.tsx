@@ -481,13 +481,14 @@ export default function Home() {
 
   /**
    * Slides for the mobile carousel: one per saved favorite, in the user's
-   * custom order. The last selected/searched location (current conditions
-   * block on desktop) is shown as an extra first slide while it does not
-   * match any favorite, so a fresh search result is never invisible on mobile.
+   * custom order. The home page is a favorites-only view on mobile: a freshly
+   * searched location is NOT injected here anymore — it is handled on the
+   * dedicated /search page (selected below the search bar, with actions to add
+   * it to favorites or clear the search).
    */
   const carouselLocations = useMemo<CarouselLocation[]>(() => {
     if (!isAuthenticated) return [];
-    const slides: CarouselLocation[] = userFavorites.map((fav) => ({
+    return userFavorites.map((fav) => ({
       key: `fav-${fav._id}`,
       name: fav.location_name,
       countryCode: fav.country_code,
@@ -495,31 +496,13 @@ export default function Home() {
       lon: fav.longitude,
       favoriteId: fav._id,
     }));
+  }, [isAuthenticated, userFavorites]);
 
-    if (weatherData) {
-      const matchesFavorite = slides.some(
-        (slide) =>
-          Math.abs(slide.lat - weatherData.coord.lat) < 0.05 &&
-          Math.abs(slide.lon - weatherData.coord.lon) < 0.05
-      );
-      if (!matchesFavorite) {
-        slides.unshift({
-          key: 'selected-location',
-          name: weatherData.name,
-          countryCode: weatherData.country,
-          lat: weatherData.coord.lat,
-          lon: weatherData.coord.lon,
-        });
-      }
-    }
-    return slides;
-  }, [isAuthenticated, userFavorites, weatherData]);
-
-  // Bring the matching slide into view when a brand new location is selected
-  // (e.g. coming back from the dedicated /search page): the "selected
-  // location" slide (index 0) or the matching favorite slide. Guarded by a
-  // coordinate ref so background refreshes of the same location never yank
-  // the carousel around.
+  // Bring the matching favorite slide into view when the currently displayed
+  // weather (e.g. restored from the local database on launch) corresponds to a
+  // saved favorite. Guarded by a coordinate ref so background refreshes of the
+  // same location never yank the carousel around. Non-favorite locations are
+  // intentionally not focused: the home page only surfaces favorites on mobile.
   useEffect(() => {
     if (!isAuthenticated || !weatherData) return;
     const coordKey = `${weatherData.coord.lat},${weatherData.coord.lon}`;
@@ -532,8 +515,9 @@ export default function Home() {
         Math.abs(f.latitude - weatherData.coord.lat) < 0.05 &&
         Math.abs(f.longitude - weatherData.coord.lon) < 0.05
     );
-    // Without a matching favorite, the selected location sits on slide 0.
-    carouselRef.current?.scrollToIndex(favIndex === -1 ? 0 : favIndex);
+    if (favIndex !== -1) {
+      carouselRef.current?.scrollToIndex(favIndex);
+    }
   }, [isAuthenticated, weatherData, userFavorites]);
 
   return (
