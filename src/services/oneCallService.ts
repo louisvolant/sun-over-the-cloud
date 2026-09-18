@@ -1,7 +1,34 @@
 // src/services/oneCallService.ts
-import axios from 'axios';
 import { WeatherOnCallDaySummaryModel } from '@/lib/models';
 import connectToDatabase from '@/lib/mongoose';
+
+// Bound the outbound HTTP calls so a slow Open-Meteo endpoint can never make a
+// Worker handler hang (the former axios calls relied on the Node.js http stack
+// and hung until the runtime cancelled the request).
+const OPEN_METEO_TIMEOUT_MS = 10_000;
+
+/**
+ * Native-fetch replacement for the former axios.get calls. Axios relies on the
+ * Node.js http stack and can hang on Cloudflare Workers ("Worker's code had
+ * hung"), so all outbound HTTP must use fetch with AbortSignal.timeout. Throws
+ * on non-2xx so the primary/fallback logic behaves exactly as before.
+ */
+async function fetchOpenMeteo(url: string, params: Record<string, string | number>): Promise<Response> {
+  const query = new URLSearchParams(
+    Object.entries(params).map(([key, value]) => [key, String(value)])
+  );
+  const response = await fetch(`${url}?${query.toString()}`, {
+    signal: AbortSignal.timeout(OPEN_METEO_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`Open-Meteo responded with status ${response.status}`);
+  }
+  return response;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 /**
  * Fetch and save single day summary data (used by cron scheduler) powered by Open-Meteo.
@@ -30,14 +57,15 @@ export async function fetchAndSaveDaySummary(lat: number, lon: number, date: str
       timezone: 'auto',
     };
 
-    let response;
+    let response: Response;
     try {
-      response = await axios.get(primaryUrl, { params });
-    } catch (err) {
-      response = await axios.get(fallbackUrl, { params });
+      response = await fetchOpenMeteo(primaryUrl, params);
+    } catch {
+      response = await fetchOpenMeteo(fallbackUrl, params);
     }
 
-    const daily = response.data?.daily;
+    const payload = await response.json();
+    const daily = payload?.daily;
     const data = {
       date,
       precipitation: {
@@ -60,9 +88,9 @@ export async function fetchAndSaveDaySummary(lat: number, lon: number, date: str
     await newDoc.save();
 
     return { success: true, data };
-  } catch (error: any) {
-    console.error('Error fetching day summary from Open-Meteo:', error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error('Error fetching day summary from Open-Meteo:', errorMessage(error));
+    return { success: false, error: errorMessage(error) };
   }
 }
 
@@ -104,15 +132,16 @@ export async function fetchMonthSummary(lat: number, lon: number, year: number, 
       timezone: 'auto',
     };
 
-    let response;
+    let response: Response;
     try {
-      response = await axios.get(primaryUrl, { params });
-    } catch (primaryErr: any) {
-      console.warn(`Primary Open-Meteo endpoint (${primaryUrl}) failed, falling back to ${fallbackUrl}:`, primaryErr.message);
-      response = await axios.get(fallbackUrl, { params });
+      response = await fetchOpenMeteo(primaryUrl, params);
+    } catch (primaryErr: unknown) {
+      console.warn(`Primary Open-Meteo endpoint (${primaryUrl}) failed, falling back to ${fallbackUrl}:`, errorMessage(primaryErr));
+      response = await fetchOpenMeteo(fallbackUrl, params);
     }
 
-    const daily = response.data?.daily;
+    const payload = await response.json();
+    const daily = payload?.daily;
     if (!daily || !daily.time) {
       return { success: false, error: 'No daily data available from Open-Meteo' };
     }
@@ -131,8 +160,8 @@ export async function fetchMonthSummary(lat: number, lon: number, year: number, 
     }));
 
     return { success: true, data: dailySummaries };
-  } catch (error: any) {
-    console.error('Error in fetchMonthSummary:', error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error('Error in fetchMonthSummary:', errorMessage(error));
+    return { success: false, error: errorMessage(error) };
   }
 }

@@ -1,13 +1,41 @@
 // src/services/metNorwayService.ts
-import axios from 'axios';
 import * as SunCalc from 'suncalc';
 import tzLookup from 'tz-lookup';
 
 const MET_API_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
 const DEFAULT_USER_AGENT = 'SunOverTheCloud/1.0 (https://github.com/louisvolant/sun-over-the-cloud; contact@sunoverthecloud.com)';
+// Bound the outbound call so a slow MET Norway response can never make a
+// Worker handler hang (axios used to rely on the Node.js http stack and hang
+// until the runtime cancelled the request).
+const MET_TIMEOUT_MS = 10_000;
+
+// Minimal typings for the MET Norway timeseries fields consumed by this service.
+interface MetInstantDetails {
+  air_temperature?: number;
+  relative_humidity?: number;
+  wind_speed?: number;
+  wind_from_direction?: number;
+  air_pressure_at_sea_level?: number;
+  cloud_area_fraction?: number;
+}
+
+interface MetHoursBlock {
+  summary?: { symbol_code?: string };
+  details?: { precipitation_amount?: number };
+}
+
+interface MetTimeseriesPoint {
+  time: string;
+  data?: {
+    instant?: { details?: MetInstantDetails };
+    next_1_hours?: MetHoursBlock;
+    next_6_hours?: MetHoursBlock;
+    next_12_hours?: MetHoursBlock;
+  };
+}
 
 interface CachedEntry {
-  data: any;
+  data: unknown;
   expiresAt: number;
   lastModified?: string;
 }
@@ -35,7 +63,7 @@ export function getTimezoneOffsetSeconds(timeZone: string): number {
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const tzDate = new Date(now.toLocaleString('en-US', { timeZone }));
     return (tzDate.getTime() - utcDate.getTime()) / 1000;
-  } catch (err) {
+  } catch {
     return 0;
   }
 }
@@ -138,13 +166,21 @@ export async function fetchLocationForecast(latitude: number, longitude: number)
   }
 
   try {
-    const response = await axios.get(MET_API_URL, {
-      params: { lat, lon },
+    // Use native fetch instead of axios: axios relies on the Node.js http stack
+    // and can hang on Cloudflare Workers until the runtime cancels the request
+    // ("Worker's code had hung"). AbortSignal.timeout keeps the whole call
+    // bounded, and 304 is treated as a valid response like before.
+    const query = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+    const response = await fetch(`${MET_API_URL}?${query.toString()}`, {
       headers,
-      validateStatus: (status) => (status >= 200 && status < 300) || status === 304,
+      signal: AbortSignal.timeout(MET_TIMEOUT_MS),
     });
 
-    const expiresHeader = response.headers['expires'];
+    if (!response.ok && response.status !== 304) {
+      throw new Error(`MET Norway responded with status ${response.status}`);
+    }
+
+    const expiresHeader = response.headers.get('expires');
     const newExpiresAt = expiresHeader ? new Date(expiresHeader).getTime() : now + 30 * 60 * 1000;
 
     if (response.status === 304 && cached) {
@@ -152,19 +188,19 @@ export async function fetchLocationForecast(latitude: number, longitude: number)
       return cached.data;
     }
 
-    const lastModifiedHeader = response.headers['last-modified'];
-    const forecastData = response.data;
+    const lastModifiedHeader = response.headers.get('last-modified');
+    const forecastData = await response.json();
 
     metCache.set(cacheKey, {
       data: forecastData,
       expiresAt: newExpiresAt,
-      lastModified: lastModifiedHeader,
+      lastModified: lastModifiedHeader || undefined,
     });
 
     return forecastData;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (cached && cached.data) {
-      console.warn(`MET Norway request failed (${error.message}), returning stale cache for ${cacheKey}`);
+      console.warn(`MET Norway request failed (${error instanceof Error ? error.message : error}), returning stale cache for ${cacheKey}`);
       return cached.data;
     }
     throw error;
@@ -179,14 +215,14 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
   const lon = Number(longitude.toFixed(4));
 
   const forecast = await fetchLocationForecast(lat, lon);
-  const timeseries = forecast?.properties?.timeseries;
+  const timeseries = (forecast?.properties?.timeseries ?? []) as MetTimeseriesPoint[];
 
   if (!timeseries || timeseries.length === 0) {
     throw new Error('No weather timeseries data received from MET Norway');
   }
 
   const currentPoint = timeseries[0];
-  const instant = currentPoint.data?.instant?.details || {};
+  const instant = currentPoint.data?.instant?.details;
 
   const symbolCode =
     currentPoint.data?.next_1_hours?.summary?.symbol_code ||
@@ -195,16 +231,16 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
 
   const weatherInfo = mapMetSymbolToWeather(symbolCode);
 
-  const temp = instant.air_temperature ?? 0;
-  const humidity = instant.relative_humidity ?? 0;
-  const windSpeed = instant.wind_speed ?? 0;
+  const temp = instant?.air_temperature ?? 0;
+  const humidity = instant?.relative_humidity ?? 0;
+  const windSpeed = instant?.wind_speed ?? 0;
   const feelsLike = calculateFeelsLike(temp, humidity, windSpeed);
 
   let timezone = 'UTC';
   try {
     timezone = tzLookup(lat, lon);
-  } catch (err: any) {
-    console.warn(`Timezone lookup failed for lat=${lat}, lon=${lon}:`, err.message);
+  } catch (err: unknown) {
+    console.warn(`Timezone lookup failed for lat=${lat}, lon=${lon}:`, err instanceof Error ? err.message : err);
   }
   const timezoneOffset = getTimezoneOffsetSeconds(timezone);
 
@@ -231,7 +267,7 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
       temp,
       feels_like: feelsLike,
       humidity,
-      pressure: instant.air_pressure_at_sea_level ?? 1013,
+      pressure: instant?.air_pressure_at_sea_level ?? 1013,
       weather: [
         {
           id: weatherInfo.id,
@@ -241,8 +277,8 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
         },
       ],
       wind_speed: windSpeed,
-      wind_deg: instant.wind_from_direction ?? 0,
-      clouds: Math.round(instant.cloud_area_fraction ?? 0),
+      wind_deg: instant?.wind_from_direction ?? 0,
+      clouds: Math.round(instant?.cloud_area_fraction ?? 0),
       visibility: 10000,
       sunrise,
       sunset,
@@ -266,15 +302,15 @@ export async function getForecast(latitude: number, longitude: number) {
   const lon = Number(longitude.toFixed(4));
 
   const forecast = await fetchLocationForecast(lat, lon);
-  const timeseries = forecast?.properties?.timeseries;
+  const timeseries = (forecast?.properties?.timeseries ?? []) as MetTimeseriesPoint[];
 
   if (!timeseries || timeseries.length === 0) {
     throw new Error('No forecast data received from MET Norway');
   }
 
-  const list = timeseries.map((item: any) => {
+  const list = timeseries.map((item) => {
     const dt = Math.floor(new Date(item.time).getTime() / 1000);
-    const instant = item.data?.instant?.details || {};
+    const instant = item.data?.instant?.details;
     const symbolCode =
       item.data?.next_1_hours?.summary?.symbol_code ||
       item.data?.next_6_hours?.summary?.symbol_code ||
@@ -285,7 +321,7 @@ export async function getForecast(latitude: number, longitude: number) {
     return {
       dt,
       main: {
-        temp: instant.air_temperature ?? 0,
+        temp: instant?.air_temperature ?? 0,
       },
       weather: [
         {
