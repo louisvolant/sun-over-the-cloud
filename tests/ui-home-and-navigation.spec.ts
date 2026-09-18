@@ -211,8 +211,12 @@ test.describe('UI Navigation and Interactions', () => {
     expect(idbResult.hasStores).toBe(true);
   });
 
-  test('Footer displays updated Whois URL and MyFilmList label', async ({ page }) => {
+  test('Footer displays updated Currency Converter URL, Whois URL, and MyFilmList label', async ({ page }) => {
     await page.goto('/');
+
+    const currencyConverterLink = page.locator('footer a', { hasText: 'Currency Converter' });
+    await expect(currencyConverterLink).toBeVisible();
+    await expect(currencyConverterLink).toHaveAttribute('href', 'https://currency-converter.louisvolant.com');
 
     const whoisLink = page.locator('footer a', { hasText: 'Whois' });
     await expect(whoisLink).toBeVisible();
