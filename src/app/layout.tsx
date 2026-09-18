@@ -8,6 +8,7 @@ import HeaderButtons from './components/HeaderButtons';
 import { AuthProvider } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import PwaZoomController from './components/PwaZoomController';
+import ServiceWorkerRegister from './components/ServiceWorkerRegister';
 import "./globals.css";
 import Link from 'next/link';
 import Image from 'next/image';
@@ -70,6 +71,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <LanguageProvider>
+              <ServiceWorkerRegister />
               <PwaZoomController />
               <header className="flex flex-row justify-between items-center px-4 py-3 bg-white dark:bg-gray-800 shadow-md pt-[calc(0.75rem+var(--safe-top))]">
                 <Link href="/" className="flex items-center space-x-2 min-w-0 mr-2">
