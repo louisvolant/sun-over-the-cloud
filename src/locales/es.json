@@ -99,6 +99,8 @@
   "longitude_table_header": "Longitud",
   "actions_table_header": "Acciones",
   "remove_button": "Eliminar",
+  "confirm_remove_favorite": "¿Eliminar esta ubicación de tus favoritos?",
+  "remove_favorite_title": "Eliminar de favoritos",
   "order_table_header": "Orden",
   "move_up": "Mover arriba",
   "move_down": "Mover abajo",

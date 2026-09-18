@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useImperativeHandle } from 'react';
 import useLocationWeather from '@/hooks/useLocationWeather';
 import LocationWeatherContent from './LocationWeatherContent';
 import { useLanguage } from '@/context/LanguageContext';
+import { Star } from 'lucide-react';
 
 export interface CarouselLocation {
   /** Stable React key for the slide (favorite id or coord-based key). */
@@ -13,6 +14,8 @@ export interface CarouselLocation {
   countryCode?: string;
   lat: number;
   lon: number;
+  /** Present when this slide corresponds to a saved favorite (enables removal). */
+  favoriteId?: string;
 }
 
 export interface LocationCarouselHandle {
@@ -23,6 +26,11 @@ export interface LocationCarouselHandle {
 interface LocationCarouselProps {
   locations: CarouselLocation[];
   ref?: React.Ref<LocationCarouselHandle>;
+  /**
+   * Called when the user confirms removing the favorite rendered on a slide.
+   * The parent owns the confirmation dialog and the backend/local removal.
+   */
+  onRemoveFavorite?: (favoriteId: string) => void;
 }
 
 /**
@@ -39,12 +47,16 @@ interface LocationCarouselProps {
  *  - Each slide owns its data through the shared `useLocationWeather` hook,
  *    exactly like the expanded favorite card view (LocationWeatherContent),
  *    so the slide content is identical to the existing weather boxes.
+ *  - Each slide shows a header row (location name + favorite star at the
+ *    top-right when the slide maps to a saved favorite). Tapping the star asks
+ *    for confirmation (handled by the parent) and removes the location from
+ *    the favorites, e.g. the same action as the desktop trash button.
  *  - Vertical scrolling inside a slide and horizontal swiping between slides
  *    are handled natively by the nested scrollers (browser directional
  *    locking); no touch-action override is required since the global
  *    `touch-action` rules already allow pan-x/pan-y.
  */
-export default function LocationCarousel({ locations, ref }: LocationCarouselProps) {
+export default function LocationCarousel({ locations, ref, onRemoveFavorite }: LocationCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const { t } = useLanguage();
@@ -91,7 +103,11 @@ export default function LocationCarousel({ locations, ref }: LocationCarouselPro
         className="flex-1 flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-none"
       >
         {locations.map((location) => (
-          <CarouselSlide key={location.key} location={location} />
+          <CarouselSlide
+            key={location.key}
+            location={location}
+            onRemoveFavorite={onRemoveFavorite}
+          />
         ))}
       </div>
 
@@ -125,21 +141,53 @@ export default function LocationCarousel({ locations, ref }: LocationCarouselPro
  * useLocationWeather hook. Mounting all slides at once intentionally matches
  * the previous favorites-list behavior, where every card fetched its weather
  * on mount (IndexedDB first, then a background refresh).
+ *
+ * Layout: a non-scrolling header row (location name + favorite star on the
+ * top-right) sits above the vertically scrollable weather content, so the
+ * removal action stays reachable regardless of where the user scrolled.
  */
-function CarouselSlide({ location }: { location: CarouselLocation }) {
+function CarouselSlide({
+  location,
+  onRemoveFavorite,
+}: {
+  location: CarouselLocation;
+  onRemoveFavorite?: (favoriteId: string) => void;
+}) {
   const weatherState = useLocationWeather({
     latitude: location.lat,
     longitude: location.lon,
     locationName: location.name,
     countryCode: location.countryCode,
   });
+  const { t } = useLanguage();
+  const removeTitle = t('remove_favorite_title');
 
   return (
     // w-full + shrink-0: each slide exactly fills the carousel viewport;
-    // snap-center: magnetic alignment after a swipe; overflow-y-auto lets the
-    // slide content (current weather, forecast, graphs) scroll vertically.
-    <div className="w-full h-full shrink-0 snap-center overflow-y-auto px-3 pt-3 pb-6">
-      <LocationWeatherContent {...weatherState} />
+    // snap-center: magnetic alignment after a swipe.
+    <div className="w-full h-full shrink-0 snap-center flex flex-col px-3 pt-3 pb-6">
+      {/* Slide header: location name + yellow favorite star (remove action) */}
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+        <h2 className="font-semibold text-base text-gray-900 dark:text-gray-100 truncate min-w-0">
+          {location.name}
+        </h2>
+        {location.favoriteId && onRemoveFavorite && (
+          <button
+            type="button"
+            onClick={() => onRemoveFavorite(location.favoriteId!)}
+            className="p-2 -mr-1 -mt-1 shrink-0 rounded-full text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+            title={removeTitle}
+            aria-label={removeTitle}
+          >
+            <Star className="w-5 h-5 fill-amber-400" />
+          </button>
+        )}
+      </div>
+
+      {/* Vertically scrollable weather content (current, forecast, graphs) */}
+      <div className="flex-1 overflow-y-auto">
+        <LocationWeatherContent {...weatherState} />
+      </div>
     </div>
   );
 }

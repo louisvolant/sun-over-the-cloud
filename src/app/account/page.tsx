@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import AccountFavoritesListComponent from '@/app/components/AccountFavoritesListComponent';
 import AccountFavoritesAddComponent from '@/app/components/AccountFavoritesAddComponent';
 import AccountActionsComponent from '@/app/components/AccountActionsComponent';
+import { getLocalFavorites, saveLocalFavorites } from '@/lib/localWeatherDb';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function Account() {
@@ -33,11 +34,18 @@ export default function Account() {
   const fetchFavorites = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
+      // 1. Display cached favorites from IndexedDB immediately, so the list is
+      // never empty while the WS is syncing (or temporarily unreachable —
+      // same stale-while-revalidate pattern as the home page).
+      const cached = await getLocalFavorites();
+      if (cached && cached.length > 0) {
+        setFavorites(cached);
+      }
+
+      // 2. Refresh from the backend in the background and update the cache.
       const data = await getFavorites();
-      // Ensure data is sorted by a specific order if it's stored in the backend
-      // For now, we'll assume the backend provides it in the desired order
-      // or we'll establish an order here.
-      setFavorites(data); // Set the favorites directly
+      setFavorites(data);
+      saveLocalFavorites(data).catch((err) => console.debug('Failed saving favorites to IndexedDB:', err));
     } catch (err) {
       console.error(t('error_fetching_favorites'), err);
     }
@@ -65,6 +73,9 @@ export default function Account() {
   };
 
   const handleRemoveFavorite = async (id: string) => {
+    if (!confirm(t('confirm_remove_favorite'))) {
+      return;
+    }
     try {
       await removeFavorite(id);
       setRefreshTrigger((prev) => prev + 1);

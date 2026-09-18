@@ -300,6 +300,11 @@ export default function Home() {
   }, [isAuthenticated, loadUserFavorites]);
 
   const handleRemoveFavorite = useCallback(async (id: string) => {
+    // Ask for confirmation on every removal path (mobile carousel star and
+    // desktop trash button) so a mis-tap can never destroy a favorite.
+    if (typeof window !== 'undefined' && !window.confirm(t('confirm_remove_favorite'))) {
+      return;
+    }
     try {
       await removeFavorite(id);
       setUserFavorites((prev) => {
@@ -313,7 +318,7 @@ export default function Home() {
     } catch (err) {
       console.error('Error removing favorite:', err);
     }
-  }, [expandedFavoriteId]);
+  }, [expandedFavoriteId, t]);
 
   const handleToggleExpandFavorite = useCallback((id: string) => {
     setExpandedFavoriteId((prev) => (prev === id ? null : id));
@@ -488,6 +493,7 @@ export default function Home() {
       countryCode: fav.country_code,
       lat: fav.latitude,
       lon: fav.longitude,
+      favoriteId: fav._id,
     }));
 
     if (weatherData) {
@@ -548,7 +554,11 @@ export default function Home() {
               <span>{t('loading_favorites')}</span>
             </div>
           ) : carouselLocations.length > 0 ? (
-            <LocationCarousel ref={carouselRef} locations={carouselLocations} />
+            <LocationCarousel
+              ref={carouselRef}
+              locations={carouselLocations}
+              onRemoveFavorite={handleRemoveFavorite}
+            />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-6 text-gray-500 dark:text-gray-400">
               <Star className="w-8 h-8 text-amber-400 fill-amber-300 mb-3" />
