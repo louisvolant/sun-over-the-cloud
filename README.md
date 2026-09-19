@@ -42,8 +42,9 @@ A progressive weather web application designed for exploring live meteorological
   - Search results include an immediate "Add to favorites" toggle button.
   - Last searched location can be dismissed via a close button, clearing cached weather and stored selection.
 - **Forecast Display**:
-  - First forecast group shows the next 24 hours of slots instead of the remaining calendar day.
-  - Hourly slots and card padding compress on mobile to show at least 5 slots without scrolling.
+  - **Rolling Next-Hours Forecast**: The first forecast block ("Next hours") presents a rolling 24-hour window of upcoming hourly slots starting from the current local time.
+  - **Full 24-Hour Calendar Days**: Subsequent forecast groups ("Tomorrow" and upcoming days) display full calendar days (00:00 to 24:00) with complete hourly slots, representative midday condition icons, and daily min/max temperatures, ensuring "Tomorrow" is never truncated by the rolling next-hours window.
+  - **Mobile-Responsive Hourly Slots**: Compact horizontal scrolling strips with compressed card padding show at least 5 slots simultaneously without horizontal scrolling on mobile viewports.
 - **Internationalization (i18n)**: Full support for English, French, and Spanish with persistent user preferences.
 - **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, session cookies, and account management.
 - **Optimistic Auth**: Favorites render instantly from a local session flag, with background verification and a header sync spinner.

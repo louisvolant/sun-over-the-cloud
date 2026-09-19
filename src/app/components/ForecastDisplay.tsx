@@ -6,6 +6,7 @@ import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/context/LanguageContext';
 import { getForecast } from '@/lib/weather_api';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
+import { groupForecastByDay, formatForecastTime } from '@/lib/forecastGrouping';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface ForecastDisplayProps {
@@ -39,110 +40,6 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
       isFetchingRef.current = false; // Reset flag after fetch completes
     }
   }, [weatherData, setForecastData, setError, t]);
-
-  const getOrdinalSuffix = (day: number): string => {
-    if (language === 'en') {
-      if (day >= 11 && day <= 13) return 'th';
-      switch (day % 10) {
-        case 1: return 'st';
-        case 2: return 'nd';
-        case 3: return 'rd';
-        default: return 'th';
-      }
-    }
-    return '';
-  };
-
-  const formatDateDisplay = (date: Date, currentDate: Date): string => {
-    const today = new Date(currentDate.setHours(0, 0, 0, 0));
-    const forecastDate = new Date(date.setHours(0, 0, 0, 0));
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-
-    const currentHour = currentDate.getHours();
-
-    if (forecastDate.getTime() === today.getTime()) {
-      return currentHour >= 18 ? t('tonight_forecast') : t('today_forecast');
-    } else if (forecastDate.getTime() === tomorrow.getTime()) {
-      return t('tomorrow_forecast');
-    } else {
-      const dayNameRaw = date.toLocaleDateString(language === 'en' ? 'en-US' : (language === 'fr' ? 'fr-FR' : 'es-ES'), { weekday: 'long' });
-      const dayName = dayNameRaw ? dayNameRaw.charAt(0).toUpperCase() + dayNameRaw.slice(1) : '';
-      const day = date.getDate();
-      return `${dayName} ${day}${getOrdinalSuffix(day)}`;
-    }
-  };
-
-  // Format time to the location's timezone with dynamic separator
-  const formatForecastTime = (timestamp: number, timezone: string) => {
-    let formattedTime;
-    try {
-      formattedTime = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: timezone || 'UTC', // Fallback to UTC
-        hour12: false, // 24-hour format
-      }).format(new Date(timestamp * 1000));
-    } catch (error) {
-      console.debug('Error in formatForecastTime:', error);
-      // Fallback to UTC
-      formattedTime = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC',
-        hour12: false,
-      }).format(new Date(timestamp * 1000));
-    }
-    console.debug(`formatForecastTime: timestamp=${timestamp}, timezone=${timezone}, output=${formattedTime}`);
-    // Use 'h' separator for French, ':' for others
-    return language === 'fr' ? formattedTime.replace(':', 'h') : formattedTime;
-  };
-
-  const groupForecastByDay = (forecast: ForecastData, timezone: string) => {
-    const currentDate = new Date();
-    // Adjust current time to the location's timezone
-    const currentLocalTime = new Date(
-      currentDate.toLocaleString('en-US', { timeZone: timezone || 'UTC' })
-    );
-    console.debug('timezone:', timezone);
-    console.debug('currentLocalTime:', currentLocalTime);
-    const grouped: { [key: string]: { dt: number; main: { temp: number }; weather: { description: string; icon: string }[] }[] } = {};
-    const dateLabels: { [key: string]: string } = {};
-
-    const futureItems = forecast.list
-      .filter((item) => {
-        const date = new Date(item.dt * 1000);
-        const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone || 'UTC' }));
-        console.debug('item.dt:', item.dt, 'localDate:', localDate);
-        return localDate.getTime() >= currentLocalTime.getTime();
-      })
-      .sort((a, b) => a.dt - b.dt);
-
-    const nowSec = Math.floor(Date.now() / 1000);
-    const next24Items = futureItems
-      .filter((item) => item.dt - nowSec <= 24 * 3600);
-    const next24Set = new Set(next24Items.map((i) => i.dt));
-
-    if (next24Items.length > 0) {
-      grouped['next_24_hours'] = next24Items;
-      dateLabels['next_24_hours'] = t('next_hours_forecast');
-    }
-
-    const remaining = futureItems.filter((item) => !next24Set.has(item.dt));
-    remaining.forEach((item) => {
-      const date = new Date(item.dt * 1000);
-      // Adjust forecast time to the location's timezone
-      const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone || 'UTC' }));
-      const dateKey = localDate.toLocaleDateString();
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-        dateLabels[dateKey] = formatDateDisplay(localDate, currentLocalTime);
-      }
-      grouped[dateKey].push(item);
-    });
-
-    return { grouped, dateLabels };
-  };
 
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
@@ -178,7 +75,12 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
         <div className="flex flex-col gap-3">
           {(() => {
             const timezone = weatherData?.timezone || 'UTC';
-            const { grouped, dateLabels } = groupForecastByDay(forecastData, timezone);
+            const { grouped, dateLabels } = groupForecastByDay({
+              forecast: forecastData,
+              timezone,
+              language,
+              t,
+            });
             return Object.entries(grouped).map(([dateKey, items], index) => {
               const temps = items.map((i) => i.main.temp);
               const minTemp = Math.min(...temps);
@@ -246,7 +148,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                               darkMode ? 'border-gray-600' : 'border-gray-300'
                             }`}
                           >
-                            <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone)}</span>
+                            <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone, language)}</span>
                             <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
                               <i
                                 className={`wi ${weatherIconMap[item.weather[0].icon]} text-2xl sm:text-3xl ${
