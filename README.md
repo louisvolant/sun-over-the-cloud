@@ -46,7 +46,7 @@ A progressive weather web application designed for exploring live meteorological
   - **Full 24-Hour Calendar Days**: Subsequent forecast groups ("Tomorrow" and upcoming days) display full calendar days (00:00 to 24:00) with complete hourly slots, representative midday condition icons, and daily min/max temperatures, ensuring "Tomorrow" is never truncated by the rolling next-hours window.
   - **Mobile-Responsive Hourly Slots**: Compact horizontal scrolling strips with compressed card padding show at least 5 slots simultaneously without horizontal scrolling on mobile viewports.
 - **Internationalization (i18n)**: Full support for English, French, and Spanish with persistent user preferences.
-- **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, session cookies, and account management.
+- **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, 30-day session cookies with sliding (rolling) session renewal on active app usage, and account management.
 - **Optimistic Auth**: Favorites render instantly from a local session flag, with background verification and a header sync spinner.
 - **Footer External Projects**: Navigation links to companion projects including Currency Converter (`currency-converter.louisvolant.com`), Whois (`whois.louisvolant.com`), MyFilmList, FuelStats, OpenSkipass, and other web utilities.
 
