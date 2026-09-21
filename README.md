@@ -42,6 +42,7 @@ A progressive weather web application designed for exploring live meteorological
   - **Reliable "Use my location"**: tapping the map-pin selects the current position and keeps it visible (a programmatic clear of the input no longer dismisses the freshly selected result). The debounced search also no longer re-runs on every render, so stale results can no longer overwrite a fresh selection.
   - Search results include an immediate "Add to favorites" toggle button.
   - **Instant clear button**: when the field contains text, a cross button empties the query and wipes the current results in one tap (no need to delete the text character by character).
+  - **30-day sliding geolocation consent**: a successful "Use my location" is remembered locally for 30 days (refreshed on each use) together with the resolved position, so the app can restore "my location" on later launches without re-triggering the browser permission prompt. Denying the permission clears the cached consent.
   - Last searched location can be dismissed via a close button, clearing cached weather and stored selection.
 - **Forecast Display**:
   - **Rolling Next-Hours Forecast**: The first forecast block ("Next hours") presents a rolling 24-hour window of upcoming hourly slots starting from the current local time.

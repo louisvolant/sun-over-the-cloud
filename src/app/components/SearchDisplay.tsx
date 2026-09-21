@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { search, getDistance } from '@/lib/weather_api';
 import { Location } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
+import { clearGeolocationConsent, writeGeolocationConsent } from '@/lib/geolocation';
 import { Loader2, MapPin, X } from 'lucide-react';
 
 interface SearchDisplayProps {
@@ -80,6 +81,10 @@ export default function SearchDisplay({
             console.debug('Reverse geocode failed:', e);
           }
 
+          // Remember the successful authorization for 30 days (sliding) and
+          // store the resolved position for prompt-free restores.
+          writeGeolocationConsent({ name: cityName, country: countryCode, lat, lon });
+
           onLocationSelectRef.current({
             name: cityName,
             lat,
@@ -101,6 +106,11 @@ export default function SearchDisplay({
       },
       (geoErr) => {
         setIsLocating(false);
+        // A denied permission invalidates any cached consent so the app does
+        // not silently reuse a position the user has revoked.
+        if (geoErr.code === 1) {
+          clearGeolocationConsent();
+        }
         console.debug('Geolocation denied or failed:', geoErr.message);
       },
       { timeout: 10000, maximumAge: 60000 }

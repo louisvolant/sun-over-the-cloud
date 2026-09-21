@@ -71,6 +71,20 @@ test.describe('Search page geolocation', () => {
     await expect(page.getByText('Boulogne-Billancourt, FR')).toBeVisible({ timeout: 20000 });
     await expect(input).toHaveValue('');
 
+    // The 30-day sliding consent is persisted with the resolved position.
+    const storedConsent = await page.evaluate(() => {
+      const raw = window.localStorage.getItem('sotc:geolocationConsent');
+      return raw ? JSON.parse(raw) : null;
+    });
+    expect(storedConsent).not.toBeNull();
+    expect(storedConsent.location).toMatchObject({
+      name: 'Boulogne-Billancourt',
+      country: 'FR',
+      lat: 48.8352,
+      lon: 2.2409,
+    });
+    expect(storedConsent.expiresAt).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000);
+
     // The selection must survive the debounced cleanup that follows the clear:
     // the panel is still there after the debounce delay.
     await page.waitForTimeout(1200);

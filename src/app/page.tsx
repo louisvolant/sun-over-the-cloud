@@ -15,6 +15,7 @@ import {
 } from '@/lib/localWeatherDb';
 import { Location, WeatherData, PrecipitationData, ForecastData, CachedFavoriteLocation, FavoriteLocation } from '@/lib/types';
 import { PENDING_SEARCH_SELECTION_KEY } from '@/lib/constants';
+import { isGeolocationConsentValid, readGeolocationConsent, writeGeolocationConsent } from '@/lib/geolocation';
 import WeatherDisplay from './components/WeatherDisplay';
 import ForecastDisplay from './components/ForecastDisplay';
 import GraphsDisplay from './components/GraphsDisplay';
@@ -222,6 +223,29 @@ export default function Home() {
           }
         }
 
+        // Fallback: reuse the geolocation consented position (30-day sliding
+        // window) before asking the browser again, so the permission prompt is
+        // not shown on every launch.
+        const geolocationConsent = readGeolocationConsent();
+        const consentedLocation = geolocationConsent?.location;
+        if (
+          isGeolocationConsentValid(geolocationConsent) &&
+          consentedLocation &&
+          consentedLocation.lat &&
+          consentedLocation.lon
+        ) {
+          // Slide the 30-day window on use, then restore without prompting.
+          writeGeolocationConsent(consentedLocation);
+          handleLocationSelect({
+            name: consentedLocation.name,
+            lat: consentedLocation.lat,
+            lon: consentedLocation.lon,
+            country: consentedLocation.country,
+            location_name: consentedLocation.name,
+          }, false);
+          return;
+        }
+
         // Fallback: request browser geolocation if no saved location exists
         if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
           navigator.geolocation.getCurrentPosition(
@@ -245,6 +269,10 @@ export default function Home() {
               } catch (e) {
                 console.debug('Reverse geocoding error:', e);
               }
+
+              // Remember the authorization for 30 days (sliding) and store the
+              // resolved position for prompt-free restores.
+              writeGeolocationConsent({ name: cityName, country: countryCode, lat, lon });
 
               handleLocationSelect({
                 name: cityName,
