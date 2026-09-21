@@ -107,6 +107,8 @@ npx tsc --noEmit
 npx playwright test
 ```
 
+**End-to-end onboarding journey** (`tests/e2e-onboarding.spec.ts`): chains the full visitor lifecycle — first search, registration, adding favorites, password change, favorite removal, logout and login with the new password — against an in-memory fake backend. It covers the real frontend (routing, forms and validation, optimistic auth, IndexedDB restore, session hand-off) while running deterministically without a database or external APIs.
+
 ---
 
 ## Cloudflare Workers Deployment
