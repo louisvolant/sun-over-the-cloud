@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Search as SearchIcon, Star, Loader2, X } from 'lucide-react';
 import SearchDisplay from '../components/SearchDisplay';
 import { addFavorite } from '@/lib/account_api';
-import { Location } from '@/lib/types';
+import { Location, FavoriteLocation } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
-import { getCoordKey } from '@/lib/localWeatherDb';
+import { getCoordKey, addLocalFavorite } from '@/lib/localWeatherDb';
 import { PENDING_SEARCH_SELECTION_KEY } from '@/lib/constants';
 
 /**
@@ -22,8 +22,11 @@ import { PENDING_SEARCH_SELECTION_KEY } from '@/lib/constants';
  *    longer navigates away, because the mobile home page is a
  *    favorites-only view.
  *  - The selected panel offers two actions:
- *      * a star -> adds the location to favorites (it then appears on the
- *        home carousel and can be removed from there);
+ *      * a star -> adds the location to favorites. On success the favorite is
+ *        also written to the local IndexedDB cache so it immediately shows up
+ *        on the home carousel and in the account list; on failure an explicit
+ *        error is displayed and the location is NOT marked as added (a failed
+ *        add used to leave a filled star while the favorite was never saved);
  *      * a clear (X) -> dismisses the selected result and empties the search.
  *  - The per-result star (logged-in users only) still allows quick adds.
  *
@@ -85,17 +88,28 @@ export default function SearchPage() {
     if (addedKeys.includes(key)) return; // Already added from this page
     try {
       setIsFavoriteLoading(true);
-      await addFavorite({
+      setError(null);
+      const created = await addFavorite({
         location_name: location.name,
         latitude: location.lat,
         longitude: location.lon,
         country_code: location.country,
       });
       setAddedKeys((prev) => [...prev, key]);
+      // Cache the favorite locally right away so the home carousel and the
+      // account list display it without waiting for their next server refresh.
+      if (created && created._id) {
+        addLocalFavorite(created as FavoriteLocation).catch((err) =>
+          console.debug('Failed caching new favorite in IndexedDB:', err),
+        );
+      }
     } catch (err) {
-      // Most likely "already in favorites" — mark it as added to stay consistent
-      console.debug('Error adding favorite from search page:', err);
-      setAddedKeys((prev) => [...prev, key]);
+      // Do NOT mark the location as added on failure: the star must stay
+      // actionable and the user must be told the favorite was not saved
+      // (previously a failed request left a filled star and the favorite
+      // silently never appeared on the home carousel or in the account list).
+      console.error('Error adding favorite from search page:', err);
+      setError(t('failed_to_add_favorite', { error_message: err instanceof Error ? err.message : t('unexpected_error') }));
     } finally {
       setIsFavoriteLoading(false);
     }

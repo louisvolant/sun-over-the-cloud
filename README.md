@@ -20,7 +20,9 @@ A progressive weather web application designed for exploring live meteorological
   - **Preserved Browser Accessibility**: Outside of PWA standalone mode, standard desktop browser zoom shortcuts and pinch gestures remain fully operational for accessibility.
   - **Single-Line Header**: Seamless horizontal navigation on mobile. When authenticated, the account action compresses into a symbol button (`Settings` gear on Home, `Home` icon on Account).
   - **Mobile Sticky Footer Navigation**: A fixed bottom navigation bar on every page (mobile only) with three actions: **Home** (back to the weather page), **Search** (opens the dedicated full-page search view), and **My Account**. The bar respects the iOS safe area and a spacer keeps the page footer content from being hidden behind it.
-  - **Dedicated Mobile Search Page (`/search`)**: A full-page search view (header/footer preserved) replacing a fragile overlay panel. Tapping a result row navigates home and displays that location (the weather is fetched, persisted and focused in the carousel via a `sessionStorage` hand-off). Logged-in users can also add a result to their favorites directly from the results with a star action.
+  - **Dedicated Mobile Search Page (`/search`)**: A full-page search view (header/footer preserved) replacing a fragile overlay panel. Tapping a result row navigates home and displays that location (the weather is fetched, persisted and focused in the carousel via a `sessionStorage` hand-off). Logged-in users can also add a result to their favorites directly from the results with a star action:
+    - A successful add is written to the local IndexedDB favorites cache immediately, so the location shows up on the home carousel and in the account list without waiting for the next server refresh (the server stays the source of truth on the following sync).
+    - A failed add surfaces an explicit error and leaves the star actionable: the favorite is never reported as saved when it is not, and it is not added to the local cache either.
   - **Swipeable Location Carousel (Mobile, Logged-In)**: On mobile, the home page is centered on a single location: a full-height weather view (current conditions, forecast and on-demand graphs — the same view as an expanded favorite card) that can be swiped horizontally to switch between all saved locations, with page indicator dots for quick jumps.
     - Built on native CSS scroll-snap (no carousel dependency); each slide scrolls vertically while swiping switches slides horizontally.
     - Every slide owns its data through the shared `useLocationWeather` hook: instant render from the IndexedDB cache, then transparent background refresh (same stale-while-revalidate lifecycle as favorite cards).
@@ -108,6 +110,8 @@ npx playwright test
 ```
 
 **End-to-end onboarding journey** (`tests/e2e-onboarding.spec.ts`): chains the full visitor lifecycle — first search, registration, adding favorites, password change, favorite removal, logout and login with the new password — against an in-memory fake backend. It covers the real frontend (routing, forms and validation, optimistic auth, IndexedDB restore, session hand-off) while running deterministically without a database or external APIs.
+
+**Add favorite from the search page** (`tests/favorite-from-search.spec.ts`): an already logged-in user adds a location from the dedicated mobile `/search` page and finds it on both the home carousel and the account list; a failing `add-favorite` request surfaces an error instead of filling the star, and the location is not listed anywhere.
 
 ---
 

@@ -323,6 +323,25 @@ export async function getLocalFavorites(): Promise<FavoriteLocation[] | null> {
   });
 }
 
+/**
+ * Append a single favorite to the IndexedDB cache without waiting for a server
+ * round-trip. The dedicated /search page uses it right after a successful add
+ * so the location is immediately visible on the home carousel and in the
+ * account list, even if the background `/api/favorites` refresh is slow or
+ * temporarily unavailable.
+ */
+export async function addLocalFavorite(favorite: FavoriteLocation): Promise<void> {
+  const current = (await getLocalFavorites()) || [];
+  const alreadyCached = current.some(
+    (f) =>
+      f._id === favorite._id ||
+      (Math.abs(f.latitude - favorite.latitude) < 0.0001 &&
+        Math.abs(f.longitude - favorite.longitude) < 0.0001),
+  );
+  if (alreadyCached) return;
+  await saveLocalFavorites([...current, favorite]);
+}
+
 export async function deleteLocalWeather(key: string): Promise<void> {
   const db = await openDB();
   if (!db) return;
