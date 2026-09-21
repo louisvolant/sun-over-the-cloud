@@ -1,5 +1,5 @@
 // src/app/components/SearchDisplay.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { search, getDistance } from '@/lib/weather_api';
 import { Location } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
@@ -38,6 +38,16 @@ export default function SearchDisplay({
   const [isLocating, setIsLocating] = useState(false);
   const { t } = useLanguage();
 
+  // Keep the latest selection callback in a ref so `performSearch` no longer
+  // depends on it. The callback is usually an inline arrow recreated on every
+  // parent render: depending on it made the debounce effect re-run endlessly,
+  // firing a new search every 500ms and letting stale results overwrite a
+  // freshly selected location (e.g. the geolocation result).
+  const onLocationSelectRef = useRef(onLocationSelect);
+  useEffect(() => {
+    onLocationSelectRef.current = onLocationSelect;
+  }, [onLocationSelect]);
+
   const handleUseMyLocation = useCallback(async () => {
     if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
       setError(t('unexpected_error'));
@@ -70,16 +80,21 @@ export default function SearchDisplay({
             console.debug('Reverse geocode failed:', e);
           }
 
-          onLocationSelect({
+          onLocationSelectRef.current({
             name: cityName,
             lat,
             lon,
             country: countryCode,
             location_name: cityName,
           });
+          // Clear the query here rather than relying on the caller: this keeps
+          // the input in sync without letting a programmatic clear dismiss the
+          // location the user just picked.
           setCity('');
-        } catch (err: any) {
-          setError(err.message || t('failed_to_fetch_locations'));
+          setLocations([]);
+          setNoResults(false);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : t('failed_to_fetch_locations'));
         } finally {
           setIsLocating(false);
         }
@@ -90,7 +105,7 @@ export default function SearchDisplay({
       },
       { timeout: 10000, maximumAge: 60000 }
     );
-  }, [onLocationSelect, setCity, setError, t]);
+  }, [setCity, setError, t]);
 
   // Memoized search function
   const performSearch = useCallback(async () => {
@@ -154,7 +169,7 @@ export default function SearchDisplay({
       });
 
       if (filteredLocations.length === 1) {
-        onLocationSelect(filteredLocations[0]);
+        onLocationSelectRef.current(filteredLocations[0]);
         setLocations([]); // Clear results after auto-selecting
       } else {
         setLocations(filteredLocations);
@@ -167,7 +182,7 @@ export default function SearchDisplay({
     } finally {
       setIsSearching(false);
     }
-  }, [city, onLocationSelect, setIsSearching, setError, t]);
+  }, [city, setIsSearching, setError, t]);
 
   // Debounce effect
   useEffect(() => {

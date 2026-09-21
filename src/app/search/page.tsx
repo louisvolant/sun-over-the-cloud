@@ -66,9 +66,13 @@ export default function SearchPage() {
   };
 
   // Typing a new query dismisses the previously selected location panel.
+  // A programmatic empty value (e.g. after using geolocation clears the input)
+  // must NOT dismiss it: the location was just selected and should stay visible.
   const handleSetCity = (value: string) => {
     setCity(value);
-    setSelectedLocation(null);
+    if (value.trim() !== '') {
+      setSelectedLocation(null);
+    }
   };
 
   const handleClearSelection = () => {

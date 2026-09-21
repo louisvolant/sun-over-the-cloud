@@ -39,6 +39,7 @@ A progressive weather web application designed for exploring live meteorological
 - **Interactive Search & "New City" Section**:
   - When favorites or popular cities are present, a dedicated "New city" section title clearly separates favorite cards from the location search input.
   - Autocomplete location search with geolocation fallback.
+  - **Reliable "Use my location"**: tapping the map-pin selects the current position and keeps it visible (a programmatic clear of the input no longer dismisses the freshly selected result). The debounced search also no longer re-runs on every render, so stale results can no longer overwrite a fresh selection.
   - Search results include an immediate "Add to favorites" toggle button.
   - Last searched location can be dismissed via a close button, clearing cached weather and stored selection.
 - **Forecast Display**:
