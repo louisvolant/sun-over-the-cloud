@@ -103,4 +103,26 @@ test.describe('Search page geolocation', () => {
     await page.waitForTimeout(2500);
     expect(searchRequests).toBeLessThanOrEqual(2);
   });
+
+  test('Instant clear button empties the query and wipes the results', async ({ page }) => {
+    await page.route('**/api/search*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(multipleResults),
+      });
+    });
+
+    await page.goto('/');
+    const input = page.locator('input[type="text"]');
+    await input.fill('Boulogne');
+
+    const result = page.locator('div.cursor-pointer', { hasText: /Boulogne/ }).first();
+    await expect(result).toBeVisible({ timeout: 20000 });
+
+    await page.getByRole('button', { name: /clear search|effacer la recherche/i }).click();
+
+    await expect(input).toHaveValue('');
+    await expect(result).toHaveCount(0);
+  });
 });

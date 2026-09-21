@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { search, getDistance } from '@/lib/weather_api';
 import { Location } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, X } from 'lucide-react';
 
 interface SearchDisplayProps {
   city: string;
@@ -201,6 +201,15 @@ export default function SearchDisplay({
     }
   };
 
+  // Instant clear: empties the query and wipes the current results without
+  // waiting for the debounce, so the user can restart typing right away.
+  const handleClearSearch = useCallback(() => {
+    setCity('');
+    setLocations([]);
+    setNoResults(false);
+    setError(null);
+  }, [setCity, setError]);
+
   return (
     <div>
       {/* Input and button container */}
@@ -212,22 +221,35 @@ export default function SearchDisplay({
             onChange={(e) => setCity(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t('search_placeholder')}
-            className="w-full p-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            className={`w-full p-3 ${city ? 'pr-24' : 'pr-12'} border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
           />
-          <button
-            type="button"
-            onClick={handleUseMyLocation}
-            disabled={isLocating || isSearching}
-            title={t('use_my_location')}
-            className="absolute right-2 p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-md transition-colors disabled:opacity-50"
-            aria-label={t('use_my_location')}
-          >
-            {isLocating ? (
-              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-            ) : (
-              <MapPin className="w-5 h-5" />
+          <div className="absolute right-2 flex items-center gap-0.5">
+            {city && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                title={t('clear_search')}
+                aria-label={t('clear_search')}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={isLocating || isSearching}
+              title={t('use_my_location')}
+              className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-md transition-colors disabled:opacity-50"
+              aria-label={t('use_my_location')}
+            >
+              {isLocating ? (
+                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+              ) : (
+                <MapPin className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
         <button
           onClick={performSearch}
