@@ -167,8 +167,10 @@ test.describe('UI Navigation and Interactions', () => {
     const doneButton = page.locator('button', { hasText: /terminé|done/i });
     await expect(doneButton).toBeVisible();
 
-    // Verify reorder up/down buttons and drag handles appear on cards
-    const moveButtons = page.locator('button[aria-label*="Déplacer" i], button[aria-label*="Move" i]');
+    // Verify reorder up/down buttons and drag handles appear on cards.
+    // Anchor the labels: `*="Move"` would also match the "Remove from
+    // favorites" button ("reMove") on the hidden mobile carousel.
+    const moveButtons = page.locator('button[aria-label*="Déplacer" i], button[aria-label^="Move" i]');
     await expect(moveButtons.first()).toBeVisible();
 
     // Click "Terminé" / "Done" to exit organizing mode
