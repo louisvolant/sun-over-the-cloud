@@ -38,7 +38,7 @@ A progressive weather web application designed for exploring live meteorological
   - **Drag & Drop Organization**: An "Organize" button next to "My Favorite Locations" activates reorder mode, enabling favorites to be repositioned via desktop drag-and-drop, mobile touch gestures, or accessible up/down controls with instantaneous IndexedDB persistence and background backend synchronization.
 - **Interactive Search & "New City" Section**:
   - When favorites or popular cities are present, a dedicated "New city" section title clearly separates favorite cards from the location search input.
-  - Autocomplete location search with geolocation fallback.
+  - Autocomplete location search with geolocation fallback. Results are ranked by population, so major cities (e.g. Boulogne-Billancourt for "Boulogne") surface before tiny same-prefix villages.
   - **Reliable "Use my location"**: tapping the map-pin selects the current position and keeps it visible (a programmatic clear of the input no longer dismisses the freshly selected result). The debounced search also no longer re-runs on every render, so stale results can no longer overwrite a fresh selection.
   - Search results include an immediate "Add to favorites" toggle button.
   - **Instant clear button**: when the field contains text, a cross button empties the query and wipes the current results in one tap (no need to delete the text character by character).

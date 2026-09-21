@@ -22,6 +22,22 @@ test.describe('Weather and Geocoding APIs', () => {
     expect(first).toHaveProperty('country');
   });
 
+  test('GET /api/search - ranks major cities first for prefix queries', async ({ request }) => {
+    // The upstream geocoder lists tiny same-prefix villages before
+    // Boulogne-Billancourt; the route must re-rank by population.
+    const response = await request.get('/api/search?city=Boulogne&lang=fr');
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body)).toBe(true);
+
+    const names = body.map((item: { name: string }) => item.name);
+    expect(names).toContain('Boulogne-Billancourt');
+    expect(names).toContain('Boulogne-sur-Mer');
+    expect(names.indexOf('Boulogne-Billancourt')).toBeLessThan(
+      names.indexOf('Boulogne-sur-Mer'),
+    );
+  });
+
   test('GET /api/onecall - returns 400 if coordinates are missing', async ({ request }) => {
     const response = await request.get('/api/onecall');
     expect(response.status()).toBe(400);

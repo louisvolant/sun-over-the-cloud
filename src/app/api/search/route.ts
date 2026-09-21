@@ -17,7 +17,14 @@ interface GeocodingResult {
   longitude: number;
   country_code: string;
   admin1?: string | null;
+  population?: number | null;
 }
+
+// The upstream geocoder ranks same-prefix places by name rather than by
+// importance: for "Boulogne" it lists several tiny villages before the
+// 100k-inhabitant Boulogne-Billancourt. Fetch a wider page and re-rank by
+// population ourselves so major cities always surface first.
+const GEOCODING_RESULT_COUNT = '20';
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -58,7 +65,7 @@ export async function GET(request: NextRequest) {
     // fetch for outbound HTTP calls.
     const params = new URLSearchParams({
       name: city,
-      count: '5',
+      count: GEOCODING_RESULT_COUNT,
       language: lang,
       format: 'json',
     });
@@ -68,8 +75,13 @@ export async function GET(request: NextRequest) {
     }
     const data = await response.json();
 
-    const rawResults = data?.results || [];
-    const formattedLocations = rawResults.map((item: GeocodingResult) => ({
+    const rawResults: GeocodingResult[] = data?.results || [];
+    // Rank by population (unknown populations last) so large cities such as
+    // Boulogne-Billancourt are not buried under tiny same-prefix villages.
+    const rankedResults = [...rawResults].sort(
+      (a, b) => (b.population || 0) - (a.population || 0),
+    );
+    const formattedLocations = rankedResults.map((item: GeocodingResult) => ({
       name: item.name,
       lat: item.latitude,
       lon: item.longitude,
