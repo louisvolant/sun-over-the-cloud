@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { UserFavoritesModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { withDbTimeout } from '@/lib/timeout';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -21,23 +22,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await connectToDatabase();
+    await withDbRetry(() => connectToDatabase());
 
-    const existingFavorite = await UserFavoritesModel.findOne({
-      user_id: user.id,
-      location_name,
-      latitude,
-      longitude,
-      country_code,
-    });
+    const existingFavorite = await withDbRetry(() =>
+      UserFavoritesModel.findOne({
+        user_id: user.id,
+        location_name,
+        latitude,
+        longitude,
+        country_code,
+      }),
+    );
 
     if (existingFavorite) {
       return NextResponse.json(existingFavorite);
     }
 
-    const highestOrderFavorite = await UserFavoritesModel.findOne({ user_id: user.id })
-      .sort({ order: -1 })
-      .limit(1);
+    const highestOrderFavorite = await withDbRetry(() =>
+      UserFavoritesModel.findOne({ user_id: user.id })
+        .sort({ order: -1 })
+        .limit(1),
+    );
 
     const newOrder = highestOrderFavorite ? highestOrderFavorite.order + 1 : 0;
 
@@ -50,7 +55,9 @@ export async function POST(request: NextRequest) {
       order: newOrder,
     });
 
-    await newFavorite.save();
+    // Saves are not retried: replaying an insert whose response was lost could
+    // create a duplicate favorite. Reads and the connection are safe to retry.
+    await withDbTimeout(newFavorite.save());
     return NextResponse.json(newFavorite, { status: 201 });
   } catch (err: any) {
     console.error('Error adding favorite:', err);

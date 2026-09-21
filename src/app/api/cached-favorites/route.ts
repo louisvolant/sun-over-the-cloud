@@ -1,13 +1,13 @@
 // src/app/api/cached-favorites/route.ts
 import { NextResponse } from 'next/server';
 import { UserFavoritesModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 const DEFAULT_CACHED_FAVORITES = 3;
 
 export async function GET() {
   try {
-    await connectToDatabase();
+    await withDbRetry(() => connectToDatabase());
 
     const cachedFavoritesPipeline = [
       {
@@ -39,7 +39,7 @@ export async function GET() {
       },
     ];
 
-    const topCachedFavorites = await UserFavoritesModel.aggregate(cachedFavoritesPipeline);
+    const topCachedFavorites = await withDbRetry(() => UserFavoritesModel.aggregate(cachedFavoritesPipeline));
 
     if (!topCachedFavorites || topCachedFavorites.length === 0) {
       return NextResponse.json([]);

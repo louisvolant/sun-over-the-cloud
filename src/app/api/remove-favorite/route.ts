@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { UserFavoritesModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -16,24 +16,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing favorite ID' }, { status: 400 });
     }
 
-    await connectToDatabase();
+    await withDbRetry(() => connectToDatabase());
 
-    const result = await UserFavoritesModel.findOneAndDelete({
-      _id: id,
-      user_id: user.id,
-    });
+    const result = await withDbRetry(() =>
+      UserFavoritesModel.findOneAndDelete({
+        _id: id,
+        user_id: user.id,
+      }),
+    );
 
     if (!result) {
       return NextResponse.json({ error: 'Favorite not found' }, { status: 404 });
     }
 
-    const remainingFavorites = await UserFavoritesModel.find({ user_id: user.id }).sort({ order: 1 });
-    for (let i = 0; i < remainingFavorites.length; i++) {
-      if (remainingFavorites[i].order !== i) {
-        remainingFavorites[i].order = i;
-        await remainingFavorites[i].save();
+    await withDbRetry(async () => {
+      const remainingFavorites = await UserFavoritesModel.find({ user_id: user.id }).sort({ order: 1 });
+      for (let i = 0; i < remainingFavorites.length; i++) {
+        if (remainingFavorites[i].order !== i) {
+          remainingFavorites[i].order = i;
+          await remainingFavorites[i].save();
+        }
       }
-    }
+    });
 
     return NextResponse.json({ message: 'Favorite removed successfully' });
   } catch (err: any) {

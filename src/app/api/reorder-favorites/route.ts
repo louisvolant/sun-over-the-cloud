@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { UserFavoritesModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -20,15 +20,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await connectToDatabase();
+    await withDbRetry(() => connectToDatabase());
 
-    for (let i = 0; i < orderedFavoriteIds.length; i++) {
-      const favoriteId = orderedFavoriteIds[i];
-      await UserFavoritesModel.findOneAndUpdate(
-        { _id: favoriteId, user_id: user.id },
-        { $set: { order: i } }
-      );
-    }
+    await withDbRetry(async () => {
+      for (let i = 0; i < orderedFavoriteIds.length; i++) {
+        const favoriteId = orderedFavoriteIds[i];
+        await UserFavoritesModel.findOneAndUpdate(
+          { _id: favoriteId, user_id: user.id },
+          { $set: { order: i } }
+        );
+      }
+    });
 
     return NextResponse.json({ message: 'Favorites reordered successfully' });
   } catch (err: any) {
