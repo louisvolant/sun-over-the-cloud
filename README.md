@@ -53,7 +53,7 @@ A progressive weather web application designed for exploring live meteorological
 - **Internationalization (i18n)**: Full support for English, French, and Spanish with persistent user preferences.
 - **User Authentication & Accounts**: Secure Argon2 credential hashing, Google OAuth, 30-day session cookies with sliding (rolling) session renewal on active app usage, and account management.
 - **Optimistic Auth**: Favorites render instantly from a local session flag, with background verification and a header sync spinner.
-- **Footer Links**: Direct links to the author's Personal Page (`louisvolant.com`) and Portfolio (`louisvolant.com/portfolio`); the former list of companion projects was removed from the footer.
+- **Footer Links**: Direct links to the author's Personal Page (`louisvolant.com`) and Portfolio (`louisvolant.com/portfolio`). The links, the copyright and the theme toggle share a single compact footer row; the former list of companion projects was removed.
 
 ---
 

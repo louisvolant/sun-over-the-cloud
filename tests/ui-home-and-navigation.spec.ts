@@ -229,6 +229,22 @@ test.describe('UI Navigation and Interactions', () => {
     await expect(page.locator('footer a', { hasText: 'Whois' })).toHaveCount(0);
     await expect(page.locator('footer a', { hasText: 'MyFilmList' })).toHaveCount(0);
   });
+
+  test('Footer renders links, copyright and theme toggle on a single row on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+
+    // Direct text children of the flex row: 2 links, 2 separators and the copyright span.
+    const tops = await page.locator('footer > div > a, footer > div > span').evaluateAll((nodes) =>
+      nodes.map((node) => Math.round((node as HTMLElement).getBoundingClientRect().top)),
+    );
+
+    expect(tops.length).toBe(5);
+    expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
+
+    // The theme toggle stays on the same row too, vertically centred.
+    await expect(page.locator('footer button')).toBeVisible();
+  });
 });
 
 
