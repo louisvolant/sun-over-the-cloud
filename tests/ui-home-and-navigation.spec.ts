@@ -213,20 +213,21 @@ test.describe('UI Navigation and Interactions', () => {
     expect(idbResult.hasStores).toBe(true);
   });
 
-  test('Footer displays updated Currency Converter URL, Whois URL, and MyFilmList label', async ({ page }) => {
+  test('Footer displays only the Personal Page and Portfolio links', async ({ page }) => {
     await page.goto('/');
 
-    const currencyConverterLink = page.locator('footer a', { hasText: 'Currency Converter' });
-    await expect(currencyConverterLink).toBeVisible();
-    await expect(currencyConverterLink).toHaveAttribute('href', 'https://currency-converter.louisvolant.com');
+    const personalPageLink = page.locator('footer a', { hasText: 'Personal Page' });
+    await expect(personalPageLink).toBeVisible();
+    await expect(personalPageLink).toHaveAttribute('href', 'https://www.louisvolant.com');
 
-    const whoisLink = page.locator('footer a', { hasText: 'Whois' });
-    await expect(whoisLink).toBeVisible();
-    await expect(whoisLink).toHaveAttribute('href', 'https://whois.louisvolant.com');
+    const portfolioLink = page.locator('footer a', { hasText: 'Portfolio' });
+    await expect(portfolioLink).toBeVisible();
+    await expect(portfolioLink).toHaveAttribute('href', 'https://www.louisvolant.com/portfolio');
 
-    const myFilmListLink = page.locator('footer a', { hasText: 'MyFilmList' });
-    await expect(myFilmListLink).toBeVisible();
-    await expect(myFilmListLink).toHaveAttribute('href', 'https://www.myfilmlist.net');
+    // Companion project links were removed from the footer.
+    await expect(page.locator('footer a', { hasText: 'Currency Converter' })).toHaveCount(0);
+    await expect(page.locator('footer a', { hasText: 'Whois' })).toHaveCount(0);
+    await expect(page.locator('footer a', { hasText: 'MyFilmList' })).toHaveCount(0);
   });
 });
 

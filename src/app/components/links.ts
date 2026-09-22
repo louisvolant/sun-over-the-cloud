@@ -8,16 +8,9 @@ export const internalLinks: LinkItem[] = [
   { label: 'Home', href: '/' },
 ];
 
+// Footer links now point only to the author's personal site: the long list of
+// companion projects was removed to keep the footer focused.
 export const externalLinks: LinkItem[] = [
   { label: 'Personal Page', href: 'https://www.louisvolant.com' },
-  { label: 'Password Keeper', href: 'https://www.securaised.net' },
-  { label: 'MP3 Tool', href: 'https://mp3-tool.louisvolant.com' },
-  { label: 'Skipass Checker', href: 'https://skipass-earlybird-checker.louisvolant.com' },
-  { label: 'Build My CV', href: 'https://buildmycv.net' },
-  { label: 'My 20 years old blog', href: 'https://www.abricocotier.fr' },
-  { label: 'Currency Converter', href: 'https://currency-converter.louisvolant.com' },
-  { label: 'Whois', href: 'https://whois.louisvolant.com' },
-  { label: 'MyFilmList', href: 'https://www.myfilmlist.net' },
-  { label: 'FuelStats', href: 'https://www.fuelstats.net' },
-  { label: 'OpenSkipass', href: 'https://www.openskipass.com' },
+  { label: 'Portfolio', href: 'https://www.louisvolant.com/portfolio' },
 ];
