@@ -190,7 +190,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                               title={markerLabel}
                               className={`flex flex-col items-center min-w-[68px] sm:min-w-[100px] px-0.5 py-1 sm:p-1 border-r-[0.5px] last:border-r-0 ${
                                 darkMode ? 'border-gray-600' : 'border-gray-300'
-                              } ${isSunrise ? 'bg-amber-500/5 dark:bg-amber-400/10' : 'bg-indigo-500/5 dark:bg-indigo-400/10'}`}
+                              }`}
                             >
                               <span className="text-xs font-medium mb-1">{formatForecastTime(entry.dt, timezone, language)}</span>
                               <div
