@@ -163,7 +163,10 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                                 }`}
                               >
                                 <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone, language)}</span>
-                                <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                                <div
+                                  className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+                                  title={tWeather(item.weather[0].description)}
+                                >
                                   <i
                                     className={`wi ${weatherIconMap[item.weather[0].icon]} text-2xl sm:text-3xl ${
                                       weatherIconColorMap[item.weather[0].icon]
@@ -171,9 +174,6 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                                   />
                                 </div>
                                 <span className="text-xs font-medium mb-1">{item.main.temp.toFixed(1)}°C</span>
-                                <span className="text-[10px] text-center capitalize">
-                                  {tWeather(item.weather[0].description)}
-                                </span>
                               </div>
                             );
                           }
@@ -201,7 +201,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                                 {isSunrise ? <Sunrise className="w-6 h-6 sm:w-7 sm:h-7" /> : <Sunset className="w-6 h-6 sm:w-7 sm:h-7" />}
                               </div>
                               <span
-                                className={`text-[10px] text-center capitalize font-medium ${
+                                className={`text-[10px] text-center font-medium ${
                                   isSunrise ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-500 dark:text-indigo-400'
                                 }`}
                               >
