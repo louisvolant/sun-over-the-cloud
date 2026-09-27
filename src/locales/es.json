@@ -29,6 +29,8 @@
   "tonight_forecast": "Esta noche",
   "tomorrow_forecast": "Mañana",
   "next_hours_forecast": "Próximas horas",
+  "sunrise": "Amanecer",
+  "sunset": "Atardecer",
   "celsius_short": "°C",
   "feels_like": "se siente como",
   "wind_speed_unit": "m/s",

@@ -7,7 +7,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { getForecast } from '@/lib/weather_api';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
 import { groupForecastByDay, formatForecastTime } from '@/lib/forecastGrouping';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { getSunEventsForItems, filterSunEventsToWindow, mergeTimeline } from '@/lib/sunTimes';
+import { ChevronDown, ChevronRight, Sunrise, Sunset } from 'lucide-react';
 
 interface ForecastDisplayProps {
   weatherData: WeatherData | null;
@@ -100,6 +101,16 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
               const dayIcon = middayItem?.weather[0]?.icon || '01d';
               const dayDescription = middayItem?.weather[0]?.description || '';
 
+              // Interleave sunrise/sunset markers among the hourly slots.
+              // Rolling "next hours" windows are clamped so past or far-future
+              // events of the spanned days do not leak into the strip.
+              const sunEvents = weatherData
+                ? getSunEventsForItems(items, weatherData.coord.lat, weatherData.coord.lon, timezone)
+                : [];
+              const visibleSunEvents =
+                dateKey === 'next_24_hours' ? filterSunEventsToWindow(sunEvents, items) : sunEvents;
+              const timeline = mergeTimeline(items, visibleSunEvents);
+
               return (
                 <div key={dateKey} className="flex flex-col border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 pb-3 last:pb-0">
                   {/* Clickable Header Row */}
@@ -141,27 +152,64 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                   {expanded && (
                     <div className="overflow-x-auto scroll-smooth pt-3 pb-1">
                       <div className="flex flex-row gap-1 sm:gap-2">
-                        {items.map((item, itemIdx) => (
-                          <div
-                            key={itemIdx}
-                            className={`flex flex-col items-center min-w-[68px] sm:min-w-[100px] px-0.5 py-1 sm:p-1 border-r-[0.5px] last:border-r-0 ${
-                              darkMode ? 'border-gray-600' : 'border-gray-300'
-                            }`}
-                          >
-                            <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone, language)}</span>
-                            <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                              <i
-                                className={`wi ${weatherIconMap[item.weather[0].icon]} text-2xl sm:text-3xl ${
-                                  weatherIconColorMap[item.weather[0].icon]
-                                } ${weatherIconAnimationMap[item.weather[0].icon] || ''}`}
-                              />
+                        {timeline.map((entry) => {
+                          if (entry.kind === 'hour') {
+                            const item = entry.item;
+                            return (
+                              <div
+                                key={`hour-${item.dt}`}
+                                className={`flex flex-col items-center min-w-[68px] sm:min-w-[100px] px-0.5 py-1 sm:p-1 border-r-[0.5px] last:border-r-0 ${
+                                  darkMode ? 'border-gray-600' : 'border-gray-300'
+                                }`}
+                              >
+                                <span className="text-xs font-medium mb-1">{formatForecastTime(item.dt, timezone, language)}</span>
+                                <div className={`flex-shrink-0 rounded-full p-1 mb-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                                  <i
+                                    className={`wi ${weatherIconMap[item.weather[0].icon]} text-2xl sm:text-3xl ${
+                                      weatherIconColorMap[item.weather[0].icon]
+                                    } ${weatherIconAnimationMap[item.weather[0].icon] || ''}`}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium mb-1">{item.main.temp.toFixed(1)}°C</span>
+                                <span className="text-[10px] text-center capitalize">
+                                  {tWeather(item.weather[0].description)}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          // Sunrise/sunset marker displayed in its own time slot
+                          // between the surrounding forecast hours.
+                          const isSunrise = entry.kind === 'sunrise';
+                          const markerLabel = `${t(entry.kind)} ${formatForecastTime(entry.dt, timezone, language)}`;
+                          return (
+                            <div
+                              key={`${entry.kind}-${entry.dt}`}
+                              role="img"
+                              aria-label={markerLabel}
+                              title={markerLabel}
+                              className={`flex flex-col items-center min-w-[68px] sm:min-w-[100px] px-0.5 py-1 sm:p-1 border-r-[0.5px] last:border-r-0 ${
+                                darkMode ? 'border-gray-600' : 'border-gray-300'
+                              } ${isSunrise ? 'bg-amber-500/5 dark:bg-amber-400/10' : 'bg-indigo-500/5 dark:bg-indigo-400/10'}`}
+                            >
+                              <span className="text-xs font-medium mb-1">{formatForecastTime(entry.dt, timezone, language)}</span>
+                              <div
+                                className={`flex-shrink-0 rounded-full p-1 mb-1 ${
+                                  isSunrise ? 'bg-amber-500/15 text-amber-500' : 'bg-indigo-500/15 text-indigo-400'
+                                }`}
+                              >
+                                {isSunrise ? <Sunrise className="w-6 h-6 sm:w-7 sm:h-7" /> : <Sunset className="w-6 h-6 sm:w-7 sm:h-7" />}
+                              </div>
+                              <span
+                                className={`text-[10px] text-center capitalize font-medium ${
+                                  isSunrise ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-500 dark:text-indigo-400'
+                                }`}
+                              >
+                                {t(entry.kind)}
+                              </span>
                             </div>
-                            <span className="text-xs font-medium mb-1">{item.main.temp.toFixed(1)}°C</span>
-                            <span className="text-[10px] text-center capitalize">
-                              {tWeather(item.weather[0].description)}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
