@@ -84,7 +84,10 @@ export async function withDbRetry<T>(operation: () => Promise<T>, attempts = 2):
       if (err instanceof Error && err.message.includes('not configured')) {
         throw err;
       }
-      console.error(`Database operation failed (attempt ${attempt}/${attempts}):`, err);
+      console.error(
+        `Database operation failed (attempt ${attempt}/${attempts}):`,
+        err instanceof Error ? err.message : err
+      );
     }
   }
   throw lastError;
