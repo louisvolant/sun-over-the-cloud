@@ -1,7 +1,6 @@
 // src/app/api/password_reset/verify/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { UserPasswordResetTokensModel } from '@/lib/models';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { getResetToken } from '@/lib/data';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -12,10 +11,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await withDbRetry(() => connectToDatabase());
-    const tokenDoc = await withDbRetry(() => UserPasswordResetTokensModel.findOne({ token }));
+    const tokenDoc = await getResetToken(token);
 
-    if (!tokenDoc || new Date(tokenDoc.expires_at) < new Date()) {
+    if (!tokenDoc || tokenDoc.expires_at < Date.now()) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' });
     }
 

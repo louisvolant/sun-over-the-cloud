@@ -1,9 +1,8 @@
 // src/app/api/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { UsersModel } from '@/lib/models';
+import { findUserByEmail, findUserByUsername } from '@/lib/data';
 import { verifyPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,18 +11,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Username and password are required' }, { status: 400 });
     }
 
-    await withDbRetry(() => connectToDatabase());
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
-    const user = await withDbRetry(() =>
-      UsersModel.findOne(isEmail ? { email: username } : { username })
-    );
+    const user = isEmail ? await findUserByEmail(username) : await findUserByUsername(username);
 
     if (!user || !(await verifyPassword(password, user.hashed_password))) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
     }
 
     await setSessionUser({
-      id: user._id.toString(),
+      id: user._id,
       username: user.username,
     });
 

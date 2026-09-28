@@ -1,8 +1,7 @@
 // src/app/api/remove-favorite/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
-import { UserFavoritesModel } from '@/lib/models';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { deleteFavorite, renumberFavorites } from '@/lib/data';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -16,28 +15,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing favorite ID' }, { status: 400 });
     }
 
-    await withDbRetry(() => connectToDatabase());
-
-    const result = await withDbRetry(() =>
-      UserFavoritesModel.findOneAndDelete({
-        _id: id,
-        user_id: user.id,
-      }),
-    );
-
-    if (!result) {
+    const deleted = await deleteFavorite(id, user.id);
+    if (!deleted) {
       return NextResponse.json({ error: 'Favorite not found' }, { status: 404 });
     }
 
-    await withDbRetry(async () => {
-      const remainingFavorites = await UserFavoritesModel.find({ user_id: user.id }).sort({ order: 1 });
-      for (let i = 0; i < remainingFavorites.length; i++) {
-        if (remainingFavorites[i].order !== i) {
-          remainingFavorites[i].order = i;
-          await remainingFavorites[i].save();
-        }
-      }
-    });
+    // Keep the order dense (0..n-1) after a removal.
+    await renumberFavorites(user.id);
 
     return NextResponse.json({ message: 'Favorite removed successfully' });
   } catch (err: any) {

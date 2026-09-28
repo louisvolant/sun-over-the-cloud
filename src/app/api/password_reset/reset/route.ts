@@ -1,9 +1,7 @@
 // src/app/api/password_reset/reset/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { UsersModel, UserPasswordResetTokensModel } from '@/lib/models';
+import { deleteResetToken, getResetToken, updateUserPassword } from '@/lib/data';
 import { hashPasswordArgon2 } from '@/lib/passwordUtils';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
-import { withDbTimeout } from '@/lib/timeout';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,22 +11,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Token and new password are required' }, { status: 400 });
     }
 
-    await withDbRetry(() => connectToDatabase());
-    const tokenDoc = await withDbRetry(() => UserPasswordResetTokensModel.findOne({ token }));
+    const tokenDoc = await getResetToken(token);
 
-    if (!tokenDoc || new Date(tokenDoc.expires_at) < new Date()) {
+    if (!tokenDoc || tokenDoc.expires_at < Date.now()) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 400 });
     }
 
     const hashedPassword = await hashPasswordArgon2(newpassword);
 
-    await withDbTimeout(
-      UsersModel.findByIdAndUpdate(tokenDoc.user_id, {
-        hashed_password: hashedPassword,
-      })
-    );
-
-    await withDbTimeout(UserPasswordResetTokensModel.deleteOne({ _id: tokenDoc._id }));
+    await updateUserPassword(tokenDoc.user_id, hashedPassword);
+    await deleteResetToken(tokenDoc._id);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

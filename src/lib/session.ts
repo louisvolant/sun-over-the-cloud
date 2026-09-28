@@ -1,8 +1,6 @@
 // src/lib/session.ts
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
-import connectToDatabase from './mongoose';
-import { withDbTimeout } from './timeout';
 
 const COOKIE_NAME = 'session';
 export const SESSION_DURATION_DAYS = 30;
@@ -90,31 +88,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       return tokenData.user;
     }
 
-    // 2. Fallback: check legacy connect-mongo express session cookie (s:<sessionId>.<sig>)
-    if (decodedValue.startsWith('s:')) {
-      const dotIndex = decodedValue.indexOf('.');
-      const sessionId = decodedValue.substring(2, dotIndex !== -1 ? dotIndex : undefined);
-      if (sessionId) {
-        const mongoose = await connectToDatabase();
-        const sessionDoc = await withDbTimeout(
-          mongoose.connection.collection('sessions').findOne({ _id: sessionId as any })
-        );
-        if (sessionDoc && sessionDoc.session) {
-          const parsed = JSON.parse(sessionDoc.session as string);
-          if (parsed.user && parsed.user.id) {
-            const legacyUser: SessionUser = {
-              id: parsed.user.id.toString(),
-              username: parsed.user.username || '',
-            };
-            // Upgrade legacy session to signed token with 30 days
-            try {
-              await setSessionUser(legacyUser);
-            } catch {}
-            return legacyUser;
-          }
-        }
-      }
-    }
     return null;
   } catch (err) {
     console.error('Error in getSessionUser:', err);

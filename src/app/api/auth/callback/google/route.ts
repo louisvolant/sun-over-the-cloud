@@ -1,14 +1,12 @@
 // src/app/api/auth/callback/google/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { UsersModel } from '@/lib/models';
+import { createUser, findUserByEmail } from '@/lib/data';
 import { hashPasswordArgon2 } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
-import { withDbTimeout } from '@/lib/timeout';
 
 // Bound the outbound Google calls so a stalled upstream can never make the
-// Worker hang (same failure class as the MongoDB sockets on workerd).
+// Worker hang.
 const OAUTH_TIMEOUT_MS = 10_000;
 
 const generateStrongPassword = () => {
@@ -50,15 +48,8 @@ export async function GET(request: NextRequest) {
     if (!userRes.ok) throw new Error(`Userinfo fetch failed: ${userRes.status}`);
     const { email } = await userRes.json() as { email: string };
 
-    // Every database call is bounded and retried: on Cloudflare Workers a Mongo
-    // socket that stays pending makes the runtime cancel the whole request
-    // ("Worker's code had hung", Cloudflare error 1101), which broke the Google
-    // sign-in callback.
-    await withDbRetry(() => connectToDatabase());
-
-    let userData = await withDbRetry(() =>
-      UsersModel.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
-    );
+    // D1 answers every query at the edge: no connection, no socket, no timeout.
+    let userData = await findUserByEmail(email);
 
     if (!userData) {
       const randomString = crypto.randomBytes(4).toString('hex');
@@ -66,19 +57,11 @@ export async function GET(request: NextRequest) {
       const randomPassword = generateStrongPassword();
       const hashedPassword = await hashPasswordArgon2(randomPassword);
 
-      userData = new UsersModel({
-        username,
-        email,
-        hashed_password: hashedPassword,
-        created_at: new Date(),
-      });
-      // Mutating save: bounded but never retried, so a lost response cannot
-      // create a duplicate account.
-      await withDbTimeout(userData.save());
+      userData = await createUser({ username, email, hashedPassword });
     }
 
     await setSessionUser({
-      id: userData._id.toString(),
+      id: userData._id,
       username: userData.username,
     });
 

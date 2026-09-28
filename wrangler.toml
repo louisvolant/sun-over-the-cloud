@@ -8,6 +8,18 @@ keep_vars = true
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+# Durable relational data (users, favorites, password-reset tokens).
+[[d1_databases]]
+binding = "DB"
+database_name = "sunoverthecloud-d1"
+database_id = "40b6a08a-c0d7-4391-9059-bd5c6f3eba7c"
+migrations_dir = "migrations"
+
+# Ephemeral cache data (geocoding results, Open-Meteo day summaries).
+[[kv_namespaces]]
+binding = "CACHE"
+id = "5243891e5cfe4ee782888942e75c9959"
+
 [observability.logs]
 enabled = true
 head_sampling_rate = 1

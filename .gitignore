@@ -54,3 +54,7 @@ build/
 .cache/
 /concatenated_codebase.txt
 frontend/sw.js
+
+# Wrangler local state (D1/KV emulation) and Mongo->D1 export (contains user data)
+.wrangler/
+scripts/seed-data.sql

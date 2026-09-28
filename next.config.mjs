@@ -1,5 +1,14 @@
-// next.config.js
-/** @type {import('next').NextConfig} */
+// next.config.mjs
+import { createRequire } from 'module';
+import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
+
+const require = createRequire(import.meta.url);
+
+// Makes the Cloudflare bindings (D1 `DB`, KV `CACHE`) available to the local
+// `next dev` server through wrangler's platform proxy. No-op outside dev.
+if (process.env.NODE_ENV === 'development') {
+  initOpenNextCloudflareForDev();
+}
 
 const withPWA = require('next-pwa')({
   dest: 'public',
@@ -31,6 +40,7 @@ const withPWA = require('next-pwa')({
   ],
 });
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   async headers() {
@@ -45,16 +55,16 @@ const nextConfig = {
       },
     ];
   },
-    images: {
-        unoptimized: true,
-        remotePatterns: [
-          {
-            protocol: 'https',
-            hostname: 'openweathermap.org',
-            pathname: '/img/wn/**',
-          },
-        ],
+  images: {
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'openweathermap.org',
+        pathname: '/img/wn/**',
       },
+    ],
+  },
   webpack: (config, { dev }) => {
     if (dev) {
       config.stats = 'errors-warnings'; // Only show errors and warnings
@@ -63,6 +73,5 @@ const nextConfig = {
   },
 };
 
-// Export the unique result of applying the PWA wrapper to the configuration
-module.exports = nextConfig;
-///module.exports = withPWA(nextConfig);
+export default nextConfig;
+// PWA wrapper currently disabled (kept for reference): export default withPWA(nextConfig);

@@ -1,8 +1,7 @@
 // src/app/api/reorder-favorites/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
-import { UserFavoritesModel } from '@/lib/models';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { reorderFavorites } from '@/lib/data';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -20,17 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await withDbRetry(() => connectToDatabase());
-
-    await withDbRetry(async () => {
-      for (let i = 0; i < orderedFavoriteIds.length; i++) {
-        const favoriteId = orderedFavoriteIds[i];
-        await UserFavoritesModel.findOneAndUpdate(
-          { _id: favoriteId, user_id: user.id },
-          { $set: { order: i } }
-        );
-      }
-    });
+    await reorderFavorites(user.id, orderedFavoriteIds);
 
     return NextResponse.json({ message: 'Favorites reordered successfully' });
   } catch (err: any) {

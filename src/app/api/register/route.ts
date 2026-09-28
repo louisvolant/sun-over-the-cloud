@@ -1,10 +1,8 @@
 // src/app/api/register/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { UsersModel } from '@/lib/models';
+import { createUser, findUserByUsernameOrEmail } from '@/lib/data';
 import { hashPasswordArgon2 } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
-import { withDbTimeout } from '@/lib/timeout';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -30,16 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    await withDbRetry(() => connectToDatabase());
-
-    const existingUser = await withDbRetry(() =>
-      UsersModel.findOne({
-        $or: [
-          { username: { $regex: new RegExp(`^${username}$`, 'i') } },
-          { email: { $regex: new RegExp(`^${email}$`, 'i') } },
-        ],
-      })
-    );
+    const existingUser = await findUserByUsernameOrEmail(username, email);
 
     if (existingUser) {
       let errorMessage = 'User already exists';
@@ -52,18 +41,10 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await hashPasswordArgon2(password);
-    const newUser = new UsersModel({
-      username,
-      email,
-      hashed_password: hashedPassword,
-    });
-
-    // Mutating save: bounded but never retried, so a lost response cannot
-    // create a duplicate account.
-    await withDbTimeout(newUser.save());
+    const newUser = await createUser({ username, email, hashedPassword });
 
     await setSessionUser({
-      id: newUser._id.toString(),
+      id: newUser._id,
       username,
     });
 

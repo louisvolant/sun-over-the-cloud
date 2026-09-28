@@ -1,6 +1,5 @@
 // src/services/oneCallService.ts
-import { WeatherOnCallDaySummaryModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import { getDaySummaryCache, setDaySummaryCache } from '@/lib/cache';
 
 // Bound the outbound HTTP calls so a slow Open-Meteo endpoint can never make a
 // Worker handler hang (the former axios calls relied on the Node.js http stack
@@ -35,15 +34,9 @@ function errorMessage(err: unknown): string {
  */
 export async function fetchAndSaveDaySummary(lat: number, lon: number, date: string) {
   try {
-    await connectToDatabase();
-    const existingData = await WeatherOnCallDaySummaryModel.findOne({
-      latitude: lat,
-      longitude: lon,
-      date,
-    });
-
-    if (existingData) {
-      return { success: true, data: existingData.data };
+    const cached = await getDaySummaryCache<Record<string, unknown>>(lat, lon, date);
+    if (cached) {
+      return { success: true, data: cached };
     }
 
     const primaryUrl = 'https://api.open-meteo.com/v1/forecast';
@@ -79,13 +72,12 @@ export async function fetchAndSaveDaySummary(lat: number, lon: number, date: str
       },
     };
 
-    const newDoc = new WeatherOnCallDaySummaryModel({
-      latitude: lat,
-      longitude: lon,
-      date,
-      data,
-    });
-    await newDoc.save();
+    // Best-effort cache write: a KV hiccup must never lose the fetched data.
+    try {
+      await setDaySummaryCache(lat, lon, date, data);
+    } catch (cacheErr: unknown) {
+      console.warn('Failed to cache day summary:', errorMessage(cacheErr));
+    }
 
     return { success: true, data };
   } catch (error: unknown) {

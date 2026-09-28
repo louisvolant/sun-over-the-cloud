@@ -1,15 +1,13 @@
 // src/app/api/cron/scheduler/route.ts
 import { NextResponse } from 'next/server';
-import { UserFavoritesModel } from '@/lib/models';
+import { listDistinctFavoriteLocations } from '@/lib/data';
 import { fetchAndSaveDaySummary } from '@/services/oneCallService';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 export async function GET() {
   console.log('Starting scheduled check...');
 
   try {
-    await withDbRetry(() => connectToDatabase());
-    const allFavorites = await withDbRetry(() => UserFavoritesModel.find({}));
+    const allFavorites = await listDistinctFavoriteLocations();
     if (!allFavorites || allFavorites.length === 0) {
       return NextResponse.json({ message: 'No favorite locations to process' });
     }

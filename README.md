@@ -63,19 +63,14 @@ A progressive weather web application designed for exploring live meteorological
 Create a `.env.local` file in the project root with the required environment variables:
 
 ```env
-# MongoDB Atlas
-MONGODB_ATLAS_USERNAME=...
-MONGODB_ATLAS_PASSWORD=...
-MONGODB_ATLAS_CLUSTER_URL=...
-MONGODB_ATLAS_DB_NAME=...
-MONGODB_ATLAS_APP_NAME=...
-
 # Session Cookie Secret
 SESSION_COOKIE_KEY=...
 
 # MET Norway User-Agent (Terms of Service requirement)
 MET_NO_USER_AGENT=SunOverTheCloud/1.0 contact@yourdomain.com
 ```
+
+D1 and KV need no environment variables: they are Cloudflare bindings declared in `wrangler.toml` (see [Data storage](#data-storage-d1--kv) below).
 
 ---
 
@@ -93,7 +88,11 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+Open [http://localhost:3000](http://localhost:3000) with your browser. `next dev` proxies the Cloudflare bindings (`DB`, `CACHE`) through `initOpenNextCloudflareForDev()` (configured in `next.config.mjs`), so the local D1/KV emulation is used. To run the real Worker locally instead (closer to production), use:
+
+```bash
+npm run preview
+```
 
 ### Quality Verification
 
@@ -127,11 +126,28 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
 - `next.config.js` sets long-lived immutable caching for `/_next/static/*` and `no-cache, no-store, must-revalidate` for all other pages.
 - Password hashing uses `hash-wasm` (pure WebAssembly argon2id) instead of native `argon2`, keeping the same PHC-encoded `$argon2id$v=19$` format so existing password hashes remain verifiable.
 - **Native `fetch` everywhere on the server**: all outbound HTTP from API routes and server services must use the native `fetch` — never axios or Node-http-based clients such as node-mailjet. The Node.js http stack can hang on Cloudflare Workers until the runtime cancels the request ("Worker's code had hung"). This now covers the MET Norway service (`metNorwayService.ts`), the Open-Meteo day/month summary service (`oneCallService.ts`, used by `/api/onecallmonthsummary` and the cron scheduler), the Open-Meteo geocoding cache lookup in `/api/search`, and Mailjet password-reset emails (native `fetch` to `api.mailjet.com` with Basic auth, best-effort so a Mailjet outage never leaks account existence). Slow upstreams are bounded with `AbortSignal.timeout`.
-- **Time-bounded MongoDB access**: `connectToDatabase()` races the Atlas connection against a hard timeout (`CONNECT_TIMEOUT_MS`, 10s) and sets driver-level `serverSelectionTimeoutMS` / `connectTimeoutMS`, because the MongoDB driver's TCP sockets never settle on workerd. The generous connect budget matters for rarely-hit routes (the Google OAuth callback in particular) that land on a cold isolate and must redo the whole handshake. On a connect failure the half-open connection is torn down (`mongoose.disconnect()`) so the retry opens a fresh socket instead of reusing the one workerd dropped. The driver is also pinned to IPv4 (`family: 4`) since Atlas SRV records resolve to both `A` and `AAAA` answers and the Workers `node:tls` shim is unreliable over IPv6.
-  - **Every favorites query is time-bounded and read-retried**: the favorites endpoints (`/api/favorites`, `/api/add-favorite`, `/api/remove-favorite`, `/api/reorder-favorites`, `/api/cached-favorites`) wrap each MongoDB call in the shared `withDbRetry()` helper (`DB_OPERATION_TIMEOUT_MS`, 8s per attempt, `withTimeout()` from `src/lib/timeout.ts`). Without it, a Mongo socket that stays pending made the Workerd hang detector cancel the whole request ("Worker's code had hung", Cloudflare `error code: 1101`). Because the favorites list could then never be read, a location freshly added from the search page never showed up on the home carousel or in the account list. Operations that mutate data (`save()`) are bounded but never retried, so a lost response cannot create a duplicate favorite.
-  - **The same bounding covers authentication and account routes**: the Google OAuth callback (`/api/auth/callback/google`), credential login (`/api/login`), registration (`/api/register`), password change and reset (`/api/changepassword`, `/api/password_reset/*`), account deletion (`/api/delete_my_account`) and the legacy session fallback in `src/lib/session.ts` all route their MongoDB reads through `withDbRetry()` and their mutations (saves, updates, deletes) through `withDbTimeout()`. Unbounded `findOne`/`save` calls there made Google sign-in fail with the same `1101` error. The outbound Google OAuth calls are also bounded with `AbortSignal.timeout`.
-  - Optional Database lookups/saves (e.g. the `/api/search` geocoding cache) additionally use `withTimeout()` (1.5s on the search path) so a slow, hanging, or unreachable database always falls back to the live upstream call instead of stalling the request.
-  - **Anonymous popular locations are memoized**: `/api/cached-favorites` (the global "popular locations" list shown to logged-out visitors) keeps its last successful result for 5 minutes in the isolate and serves it on subsequent requests, falling back to the last known list on failure. This avoids hitting MongoDB on every anonymous home load, where the bounded 5s timeouts used to fire often on workerd.
+- **Data storage is Cloudflare D1 + KV — no TCP database driver**:
+  - **D1 (SQLite, binding `DB`)** holds the durable, relational data: `users`, `user_favorites` and `password_reset_tokens`. The schema lives in `migrations/` (applied with `npm run db:migrate:local` / `db:migrate:remote`) and every query is a prepared statement executed at the edge (`src/lib/data.ts`). There is no connection to open, pool, or time out, which removes the whole class of cold-start handshake failures and "Worker's code had hung" (error 1101) that the former MongoDB TCP driver suffered from on workerd.
+  - **KV (binding `CACHE`)** holds the disposable caches: geocoding results and Open-Meteo day summaries, stored as JSON with a 30-day `expirationTtl` (`src/lib/cache.ts`). They regenerate on demand and are safe to lose.
+  - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. The legacy connect-mongo session fallback was dropped.
+
+### Data storage & migrations
+
+The bindings are declared in `wrangler.toml` (`DB` for D1, `CACHE` for KV). Apply the schema to the D1 database:
+
+```bash
+npm run db:migrate:local    # local D1 emulation used by `next dev`
+npm run db:migrate:remote   # production D1
+```
+
+**One-time data migration from MongoDB.** With the old `MONGODB_ATLAS_*` variables still present in `.env.local`, run:
+
+```bash
+npm run db:export
+npx wrangler d1 execute sunoverthecloud-d1 --remote --file=scripts/seed-data.sql
+```
+
+`npm run db:export` reads the `Users`, `UserFavorites` and `UserPasswordResetTokens` collections and writes `scripts/seed-data.sql` (git-ignored, it contains user data). The KV caches regenerate on demand and are not exported.
 
 ### Environment Variables
 
@@ -139,9 +155,8 @@ All variables are managed via the Cloudflare dashboard or `wrangler secret put`.
 
 ```text
 BACKEND_URL, FRONTEND_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MAILJET_API_KEY,
-MAILJET_API_SECRET, MAILJET_SENDER_EMAIL, MET_NO_USER_AGENT, MONGODB_ATLAS_APP_NAME,
-MONGODB_ATLAS_CLUSTER_URL, MONGODB_ATLAS_DB_NAME, MONGODB_ATLAS_PASSWORD,
-MONGODB_ATLAS_USERNAME, NEXT_PUBLIC_BACKEND_URL, REDIRECT_URI, SESSION_COOKIE_KEY
+MAILJET_API_SECRET, MAILJET_SENDER_EMAIL, MET_NO_USER_AGENT, NEXT_PUBLIC_BACKEND_URL,
+REDIRECT_URI, SESSION_COOKIE_KEY
 ```
 
 For local development, copy these into `.env.local`.
@@ -149,11 +164,17 @@ For local development, copy these into `.env.local`.
 ### Commands
 
 ```bash
-# Build for Cloudflare Workers (Next.js build plus OpenNext worker bundle)
+# Next.js production build
 npm run build
+
+# Build the Cloudflare Worker bundle (Next.js build + OpenNext bundling)
+npm run build:worker
+
+# Run the built Worker locally with local D1/KV bindings
+npm run preview
 
 # Build and deploy to Cloudflare Workers
 npm run deploy
 ```
 
-The Cloudflare dashboard build command must run the OpenNext bundling step. Since `npm run build` already includes `opennextjs-cloudflare build`, keep the dashboard build command as `npm run build` with deploy command `npx wrangler deploy`.
+The Cloudflare dashboard build command must run the OpenNext bundling step: use `npm run build:worker` as the build command with `npx wrangler deploy` as the deploy command.

@@ -1,9 +1,7 @@
 // src/app/api/delete_my_account/route.ts
 import { NextResponse } from 'next/server';
 import { getSessionUser, clearSession } from '@/lib/session';
-import { UsersModel, UserFavoritesModel } from '@/lib/models';
-import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
-import { withDbTimeout } from '@/lib/timeout';
+import { deleteFavoritesForUser, deleteUser } from '@/lib/data';
 
 export async function POST() {
   const user = await getSessionUser();
@@ -12,9 +10,8 @@ export async function POST() {
   }
 
   try {
-    await withDbRetry(() => connectToDatabase());
-    await withDbTimeout(UserFavoritesModel.deleteMany({ user_id: user.id }));
-    await withDbTimeout(UsersModel.findByIdAndDelete(user.id));
+    await deleteFavoritesForUser(user.id);
+    await deleteUser(user.id);
     await clearSession();
 
     return NextResponse.json({
