@@ -42,7 +42,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * runtime trackable work to wait on, so the query has the time to answer
  * instead of being killed mid-flight.
  */
-export const DB_OPERATION_TIMEOUT_MS = 5_000;
+export const DB_OPERATION_TIMEOUT_MS = 8_000;
 
 /** Run a single MongoDB operation with {@link DB_OPERATION_TIMEOUT_MS}. */
 export function withDbTimeout<T>(promise: Promise<T>): Promise<T> {

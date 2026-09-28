@@ -8,7 +8,11 @@ const MONGODB_URI = `mongodb+srv://${process.env.MONGODB_ATLAS_USERNAME}:${proce
 // driver cannot open TCP sockets (its `net`/`tls` calls never settle on
 // workerd), so without a hard timeout `await connectToDatabase()` hangs forever
 // and the runtime cancels the request with "Worker's code had hung".
-const CONNECT_TIMEOUT_MS = 5_000;
+//
+// The budget is deliberately generous: a rarely-hit route (e.g. the Google
+// OAuth callback) usually lands on a cold isolate and must redo the whole
+// handshake (SRV + TLS + server selection), which regularly exceeded the old 5s.
+const CONNECT_TIMEOUT_MS = 10_000;
 
 interface GlobalMongoose {
   conn: typeof mongoose | null;
@@ -56,7 +60,10 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
     cached.conn = await withTimeout(cached.promise, CONNECT_TIMEOUT_MS);
   } catch (err) {
     cached.promise = null;
-    console.error('MongoDB connection error:', err);
+    // Tear down the half-open connection so a retry opens a fresh socket
+    // instead of reusing the one workerd just dropped.
+    mongoose.disconnect().catch(() => {});
+    console.error('MongoDB connection error:', err instanceof Error ? err.message : err);
     throw err;
   }
 
