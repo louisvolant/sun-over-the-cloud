@@ -582,8 +582,8 @@ export default function Home() {
       )}
 
       {/* Desktop layout (and anonymous mobile users) — unchanged */}
-      <div className={`justify-center items-start py-8 ${isAuthenticated ? 'hidden md:flex' : 'flex'}`}>
-      <div className="w-full max-w-4xl mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg mb-8">
+      <div className={`justify-center items-start py-4 sm:py-8 ${isAuthenticated ? 'hidden md:flex' : 'flex'}`}>
+      <div className="w-full max-w-4xl mx-4 sm:mx-6 lg:mx-8 px-4 sm:px-6 lg:px-8 py-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg mb-4 sm:mb-8">
         {/* User Favorite Locations Cards (when authenticated, placed above search) */}
         {isAuthenticated && (
           <div className="mb-6">
