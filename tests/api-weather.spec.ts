@@ -38,6 +38,43 @@ test.describe('Weather and Geocoding APIs', () => {
     );
   });
 
+  test('GET /api/search - finds hyphenated place names from a spaced query', async ({ request }) => {
+    // The geocoder only indexes "Saint-Maurice-de-Lignon": the route must
+    // expand the query into its separator variants instead of returning
+    // nothing when the user types spaces.
+    const response = await request.get('/api/search?city=Saint+Maurice+de+Lignon&lang=fr');
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    const names = body.map((item: { name: string }) => item.name);
+    expect(names).toContain('Saint-Maurice-de-Lignon');
+    // The exact match the user asked for must come first, not a bigger
+    // place returned by another variant.
+    expect(names[0]).toBe('Saint-Maurice-de-Lignon');
+  });
+
+  test('GET /api/search - finds a spaced place name from a mixed query', async ({ request }) => {
+    // Mixed separators and odd casing used to return an empty list.
+    const response = await request.get('/api/search?city=SAint-Maurice+de+Lignon&lang=fr');
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    const names = body.map((item: { name: string }) => item.name);
+    expect(names).toContain('Saint-Maurice-de-Lignon');
+  });
+
+  test('GET /api/search - finds a hyphenated and accented name from a plain query', async ({ request }) => {
+    // "Saint Etienne" (spaces, no accent) only matches "Saint-Étienne" through
+    // the hyphenated variant, and that city must be ranked first.
+    const response = await request.get('/api/search?city=Saint+Etienne&lang=fr');
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    const names = body.map((item: { name: string }) => item.name);
+    expect(names).toContain('Saint-Étienne');
+    expect(names[0]).toBe('Saint-Étienne');
+  });
+
   test('GET /api/onecall - returns 400 if coordinates are missing', async ({ request }) => {
     const response = await request.get('/api/onecall');
     expect(response.status()).toBe(400);

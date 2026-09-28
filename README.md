@@ -41,6 +41,7 @@ A progressive weather web application designed for exploring live meteorological
 - **Interactive Search & "New City" Section**:
   - When favorites or popular cities are present, a dedicated "New city" section title clearly separates favorite cards from the location search input.
   - Autocomplete location search with geolocation fallback. Results are ranked by population, so major cities (e.g. Boulogne-Billancourt for "Boulogne") surface before tiny same-prefix villages.
+  - **Separator-insensitive search**: the geocoder indexes compound names with hyphens ("Saint-Maurice-de-Lignon"), but users type spaces and mixed casing ("Saint Maurice de Lignon", "SAint-Maurice de Lignon"), which used to return nothing. `/api/search` now expands each query into its separator variants (hyphen-joined and space-joined), queries them in parallel and merges the answers, deduplicating the same place returned by several variants and ranking an exact name match first (accent-insensitive, like the geocoder itself) before falling back to population. A single-word query still costs exactly one upstream call, all variants share one normalized KV cache key, and a failing variant never hides the results of the others.
   - **Reliable "Use my location"**: tapping the map-pin selects the current position and keeps it visible (a programmatic clear of the input no longer dismisses the freshly selected result). The debounced search also no longer re-runs on every render, so stale results can no longer overwrite a fresh selection.
   - Search results include an immediate "Add to favorites" toggle button.
   - **Instant clear button**: when the field contains text, a cross button empties the query and wipes the current results in one tap (no need to delete the text character by character).
@@ -112,6 +113,8 @@ npx playwright test
 **End-to-end onboarding journey** (`tests/e2e-onboarding.spec.ts`): chains the full visitor lifecycle — first search, registration, adding favorites, password change, favorite removal, logout and login with the new password — against an in-memory fake backend. It covers the real frontend (routing, forms and validation, optimistic auth, IndexedDB restore, session hand-off) while running deterministically without a database or external APIs.
 
 **Add favorite from the search page** (`tests/favorite-from-search.spec.ts`): an already logged-in user adds a location from the dedicated mobile `/search` page and finds it on both the home carousel and the account list; a failing `add-favorite` request surfaces an error instead of filling the star, and the location is not listed anywhere.
+
+**Search query helpers** (`tests/search-query.spec.ts`): pure unit tests for the separator-variant expansion, the shared cache-key normalization, the coordinate-based deduplication and the exact-name-then-population ranking, with no server and no network involved. The end-to-end behavior is covered by `tests/api-weather.spec.ts`, which queries the live geocoder and asserts that a spaced or mixed-separator query still returns the hyphenated place as its first result.
 
 ---
 
