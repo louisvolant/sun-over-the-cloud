@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createUser, findUserByEmail } from '@/lib/data';
-import { hashPasswordArgon2 } from '@/lib/passwordUtils';
+import { hashPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
 
 // Bound the outbound Google calls so a stalled upstream can never make the
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       const randomString = crypto.randomBytes(4).toString('hex');
       const username = `user_${randomString}`;
       const randomPassword = generateStrongPassword();
-      const hashedPassword = await hashPasswordArgon2(randomPassword);
+      const hashedPassword = await hashPassword(randomPassword);
 
       userData = await createUser({ username, email, hashedPassword });
     }

@@ -1,7 +1,7 @@
 // src/app/api/register/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createUser, findUserByUsernameOrEmail } from '@/lib/data';
-import { hashPasswordArgon2 } from '@/lib/passwordUtils';
+import { hashPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status: 409 });
     }
 
-    const hashedPassword = await hashPasswordArgon2(password);
+    const hashedPassword = await hashPassword(password);
     const newUser = await createUser({ username, email, hashedPassword });
 
     await setSessionUser({

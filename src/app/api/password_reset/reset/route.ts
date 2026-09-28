@@ -1,7 +1,7 @@
 // src/app/api/password_reset/reset/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteResetToken, getResetToken, updateUserPassword } from '@/lib/data';
-import { hashPasswordArgon2 } from '@/lib/passwordUtils';
+import { hashPassword } from '@/lib/passwordUtils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 400 });
     }
 
-    const hashedPassword = await hashPasswordArgon2(newpassword);
+    const hashedPassword = await hashPassword(newpassword);
 
     await updateUserPassword(tokenDoc.user_id, hashedPassword);
     await deleteResetToken(tokenDoc._id);

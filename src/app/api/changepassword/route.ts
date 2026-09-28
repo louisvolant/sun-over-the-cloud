@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { updateUserPassword } from '@/lib/data';
-import { hashPasswordArgon2 } from '@/lib/passwordUtils';
+import { hashPassword } from '@/lib/passwordUtils';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Password must be at least 6 characters' }, { status: 400 });
     }
 
-    const hashedPassword = await hashPasswordArgon2(newpassword);
+    const hashedPassword = await hashPassword(newpassword);
     const updated = await updateUserPassword(user.id, hashedPassword);
 
     if (!updated) {
