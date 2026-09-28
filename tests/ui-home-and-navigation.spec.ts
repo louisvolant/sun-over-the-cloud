@@ -279,6 +279,22 @@ test.describe('UI Navigation and Interactions', () => {
     // The theme toggle stays on the same row too, vertically centred.
     await expect(page.locator('footer button')).toBeVisible();
   });
+
+  test('A failed Google sign-in shows a visible amber banner and cleans the URL', async ({ page }) => {
+    await page.goto('/?error=oauth_failed');
+
+    // Scope to <main>: Next.js also renders a hidden role="alert" route announcer.
+    const alert = page.locator('main').getByRole('alert');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText(/google/i);
+
+    // The error param is stripped so a refresh does not show the banner again.
+    await expect(page).toHaveURL(/\/$/);
+
+    // The banner can be dismissed.
+    await alert.getByRole('button', { name: /dismiss/i }).click();
+    await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
+  });
 });
 
 

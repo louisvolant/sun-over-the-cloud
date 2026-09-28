@@ -49,6 +49,7 @@
   "username_or_email_label": "Nombre de usuario o Correo electrónico",
   "password_label": "Contraseña",
   "unexpected_error": "Ha ocurrido un error inesperado",
+  "google_login_failed": "No se pudo iniciar sesión con Google. Inténtalo de nuevo o usa tu correo y contraseña.",
   "cancel_button": "Cancelar",
   "login_with_google": "Iniciar sesión con Google",
   "register_title": "Registrarse",

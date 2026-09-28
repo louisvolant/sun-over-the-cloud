@@ -49,6 +49,7 @@
   "username_or_email_label": "Username or Email",
   "password_label": "Password",
   "unexpected_error": "An unexpected error occurred",
+  "google_login_failed": "Google sign-in failed. Please try again, or sign in with your email and password.",
   "cancel_button": "Cancel",
   "login_with_google": "Log in with Google",
   "register_title": "Register",

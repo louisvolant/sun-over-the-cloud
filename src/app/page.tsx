@@ -25,7 +25,7 @@ import LoginModal from './components/LoginModal';
 import LocationCarousel, { LocationCarouselHandle, CarouselLocation } from './components/LocationCarousel';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
-import { Star, Loader2, ArrowUpDown, PlusCircle, X } from 'lucide-react';
+import { Star, Loader2, ArrowUpDown, PlusCircle, X, AlertTriangle } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'cachedFavorites';
 const LAST_LOCATION_KEY = 'lastSelectedLocation';
@@ -50,6 +50,9 @@ export default function Home() {
   const [expandedFavoriteId, setExpandedFavoriteId] = useState<string | null>(null);
   const [isFavoriteActionLoading, setIsFavoriteActionLoading] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  // User-facing message shown when an external sign-in (Google) comes back with
+  // an error, so the visitor is not silently dropped back on the home page.
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Favorites organization state (Drag and Drop / Reorder)
   const [isOrganizing, setIsOrganizing] = useState(false);
@@ -64,6 +67,27 @@ export default function Home() {
   const lastSelectedCoordRef = useRef<string | null>(null);
 
   const { t } = useLanguage();
+
+  // Surface an external sign-in failure (the Google callback redirects back to
+  // `/` with `?error=oauth_failed`) as a visible banner, then strip the param so
+  // a refresh does not show it again.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get('error');
+    if (!errorParam) return;
+
+    if (errorParam === 'oauth_failed' || errorParam === 'missing_code') {
+      setAuthError(t('google_login_failed'));
+    }
+
+    params.delete('error');
+    const query = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    );
+  }, [t]);
 
   const handleLocationSelect = useCallback(async (location: Partial<Location>, isBackground = false) => {
     try {
@@ -550,6 +574,26 @@ export default function Home() {
 
   return (
     <>
+      {authError && (
+        <div className="px-4 pt-4">
+          <div
+            role="alert"
+            className="mx-auto flex max-w-4xl items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-200"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <span className="flex-1">{authError}</span>
+            <button
+              type="button"
+              onClick={() => setAuthError(null)}
+              aria-label="Dismiss"
+              className="shrink-0 rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-800/40"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Mobile logged-in layout: a single full-height weather view per
           location, horizontally swipeable between all saved locations.
           Search lives in a collapsible panel triggered from the sticky
