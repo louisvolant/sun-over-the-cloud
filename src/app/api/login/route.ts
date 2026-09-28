@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { UsersModel } from '@/lib/models';
 import { verifyPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +12,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Username and password are required' }, { status: 400 });
     }
 
-    await connectToDatabase();
+    await withDbRetry(() => connectToDatabase());
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
-    const user = await UsersModel.findOne(isEmail ? { email: username } : { username });
+    const user = await withDbRetry(() =>
+      UsersModel.findOne(isEmail ? { email: username } : { username })
+    );
 
     if (!user || !(await verifyPassword(password, user.hashed_password))) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });

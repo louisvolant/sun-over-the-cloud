@@ -2,6 +2,7 @@
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import connectToDatabase from './mongoose';
+import { withDbTimeout } from './timeout';
 
 const COOKIE_NAME = 'session';
 export const SESSION_DURATION_DAYS = 30;
@@ -95,7 +96,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       const sessionId = decodedValue.substring(2, dotIndex !== -1 ? dotIndex : undefined);
       if (sessionId) {
         const mongoose = await connectToDatabase();
-        const sessionDoc = await mongoose.connection.collection('sessions').findOne({ _id: sessionId as any });
+        const sessionDoc = await withDbTimeout(
+          mongoose.connection.collection('sessions').findOne({ _id: sessionId as any })
+        );
         if (sessionDoc && sessionDoc.session) {
           const parsed = JSON.parse(sessionDoc.session as string);
           if (parsed.user && parsed.user.id) {

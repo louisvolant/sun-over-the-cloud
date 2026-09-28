@@ -2,14 +2,14 @@
 import { NextResponse } from 'next/server';
 import { UserFavoritesModel } from '@/lib/models';
 import { fetchAndSaveDaySummary } from '@/services/oneCallService';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
 
 export async function GET() {
   console.log('Starting scheduled check...');
 
   try {
-    await connectToDatabase();
-    const allFavorites = await UserFavoritesModel.find({});
+    await withDbRetry(() => connectToDatabase());
+    const allFavorites = await withDbRetry(() => UserFavoritesModel.find({}));
     if (!allFavorites || allFavorites.length === 0) {
       return NextResponse.json({ message: 'No favorite locations to process' });
     }

@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { UsersModel, UserPasswordResetTokensModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { withDbTimeout } from '@/lib/timeout';
 
 const MAILJET_API_URL = 'https://api.mailjet.com/v3.1/send';
 const EMAIL_TIMEOUT_MS = 10_000;
@@ -19,8 +20,8 @@ export async function POST(request: NextRequest) {
     // Only the outbound email send below is made best-effort and time-bounded
     // so a Mailjet outage can never hang the request (nor leak the account's
     // existence with a 500).
-    await connectToDatabase();
-    const user = await UsersModel.findOne({ email });
+    await withDbRetry(() => connectToDatabase());
+    const user = await withDbRetry(() => UsersModel.findOne({ email }));
 
     // Always return success to prevent email enumeration
     if (!user) {
@@ -30,11 +31,13 @@ export async function POST(request: NextRequest) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    await UserPasswordResetTokensModel.create({
-      user_id: user._id,
-      token,
-      expires_at: expiresAt,
-    });
+    await withDbTimeout(
+      UserPasswordResetTokensModel.create({
+        user_id: user._id,
+        token,
+        expires_at: expiresAt,
+      })
+    );
 
     if (process.env.MAILJET_API_KEY && process.env.MAILJET_API_SECRET) {
       const frontendUrl = process.env.FRONTEND_URL || request.nextUrl.origin;

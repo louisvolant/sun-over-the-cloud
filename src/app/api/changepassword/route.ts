@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { UsersModel } from '@/lib/models';
 import { hashPasswordArgon2 } from '@/lib/passwordUtils';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { withDbTimeout } from '@/lib/timeout';
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -17,13 +18,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Password must be at least 6 characters' }, { status: 400 });
     }
 
-    await connectToDatabase();
+    await withDbRetry(() => connectToDatabase());
     const hashedPassword = await hashPasswordArgon2(newpassword);
 
-    const updatedUser = await UsersModel.findByIdAndUpdate(
-      user.id,
-      { hashed_password: hashedPassword },
-      { new: true }
+    const updatedUser = await withDbTimeout(
+      UsersModel.findByIdAndUpdate(
+        user.id,
+        { hashed_password: hashedPassword },
+        { new: true }
+      )
     );
 
     if (!updatedUser) {

@@ -2,7 +2,8 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, clearSession } from '@/lib/session';
 import { UsersModel, UserFavoritesModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongoose';
+import connectToDatabase, { withDbRetry } from '@/lib/mongoose';
+import { withDbTimeout } from '@/lib/timeout';
 
 export async function POST() {
   const user = await getSessionUser();
@@ -11,9 +12,9 @@ export async function POST() {
   }
 
   try {
-    await connectToDatabase();
-    await UserFavoritesModel.deleteMany({ user_id: user.id });
-    await UsersModel.findByIdAndDelete(user.id);
+    await withDbRetry(() => connectToDatabase());
+    await withDbTimeout(UserFavoritesModel.deleteMany({ user_id: user.id }));
+    await withDbTimeout(UsersModel.findByIdAndDelete(user.id));
     await clearSession();
 
     return NextResponse.json({

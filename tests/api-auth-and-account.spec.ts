@@ -119,4 +119,20 @@ test.describe('Auth, Session and Protected Routes APIs', () => {
     // In all cases, email enumeration is prevented (returns success or handles db error)
     expect([200, 500]).toContain(response.status());
   });
+
+  test('GET /api/auth/callback/google - redirects with missing_code when the code is absent', async ({ request }) => {
+    const response = await request.get('/api/auth/callback/google', { maxRedirects: 0 });
+    expect([302, 303, 307, 308]).toContain(response.status());
+    expect(response.headers()['location']).toContain('error=missing_code');
+  });
+
+  test('GET /api/auth/callback/google - settles with oauth_failed instead of hanging on a bad code', async ({ request }) => {
+    // The Worker used to be canceled ("code had hung", Cloudflare error 1101)
+    // while waiting on an unbounded MongoDB socket after the Google exchange.
+    // This asserts the callback always produces a response, and that both the
+    // Google calls and the database calls are bounded enough to settle.
+    const response = await request.get('/api/auth/callback/google?code=invalid_code', { maxRedirects: 0 });
+    expect([302, 303, 307, 308]).toContain(response.status());
+    expect(response.headers()['location']).toContain('error=oauth_failed');
+  });
 });
