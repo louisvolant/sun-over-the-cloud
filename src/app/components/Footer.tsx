@@ -12,7 +12,7 @@ export default function Footer() {
   const { t } = useLanguage();
 
   return (
-    <footer className="bg-gray-200 dark:bg-gray-800 py-4 pb-[calc(1rem+var(--spacing-safe-bottom))]">
+    <footer className="bg-gray-200 dark:bg-gray-800 py-4">
       {/* Single compact row: external links, copyright and theme toggle. */}
       <div className="container mx-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 text-center text-gray-600 dark:text-gray-300">
         {externalLinks.map((link) => (

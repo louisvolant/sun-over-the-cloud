@@ -88,9 +88,10 @@ export default function RootLayout({
               <BottomControls />
               <Footer />
               {/* Mobile-only sticky footer navigation (Home / Search / My Account).
-                  A spacer keeps the page footer content from being hidden behind it. */}
+                  The spacer below reserves the bar's height plus the iOS safe
+                  area so the last footer row is never hidden behind it. */}
               <MobileFooterNav />
-              <div className="h-16 md:hidden" aria-hidden="true" />
+              <div className="h-[calc(4rem_+_var(--safe-bottom))] shrink-0 md:hidden" aria-hidden="true" />
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -97,6 +97,40 @@ test.describe('UI Navigation and Interactions', () => {
     await expect(footer).toBeVisible();
   });
 
+  test('Mobile footer is not hidden behind the fixed bottom nav (safe-area aware)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 });
+    await page.goto('/');
+
+    // Simulate a device home-indicator safe area. The fixed bar uses it as
+    // bottom padding; the spacer below the footer must reserve it too, otherwise
+    // the last footer row stays hidden behind the bar.
+    await page.addStyleTag({ content: ':root { --safe-bottom: 30px; }' });
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    const geometry = await page.evaluate(() => {
+      const nav = document.querySelector('nav.fixed') as HTMLElement | null;
+      const footer = document.querySelector('footer') as HTMLElement | null;
+      if (!nav || !footer) return null;
+      const navRect = nav.getBoundingClientRect();
+      return {
+        navTop: navRect.top,
+        navHeight: navRect.height,
+        footerBottom: footer.getBoundingClientRect().bottom,
+      };
+    });
+
+    expect(geometry).not.toBeNull();
+    // The footer must end above the top edge of the fixed bar.
+    expect(geometry!.footerBottom).toBeLessThanOrEqual(geometry!.navTop + 1);
+
+    // The spacer must reserve at least the bar's height (including the safe area).
+    const spacerHeight = await page
+      .locator('body > div[aria-hidden="true"]')
+      .last()
+      .evaluate((el) => el.getBoundingClientRect().height);
+    expect(spacerHeight).toBeGreaterThanOrEqual(geometry!.navHeight);
+  });
+
   test('Mobile footer Search action navigates to the dedicated search page', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
