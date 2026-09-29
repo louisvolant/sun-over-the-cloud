@@ -17,6 +17,8 @@ interface WeatherDisplayProps {
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   isFavoriteLoading?: boolean;
+  /** Render the favorite action as a compact icon-only star (used on mobile carousel slides). */
+  favoriteIconOnly?: boolean;
 }
 
 export default function WeatherDisplay({
@@ -26,6 +28,7 @@ export default function WeatherDisplay({
   isFavorite = false,
   onToggleFavorite,
   isFavoriteLoading = false,
+  favoriteIconOnly = false,
 }: WeatherDisplayProps) {
   const { darkMode } = useTheme();
   const { t, tWeather, language } = useLanguage();
@@ -107,26 +110,47 @@ export default function WeatherDisplay({
               <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0">({formatCurrentTime(timezone)})</span>
             </h2>
 
-            {onToggleFavorite && (
-              <button
-                type="button"
-                onClick={onToggleFavorite}
-                disabled={isFavoriteLoading}
-                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs sm:text-sm font-medium rounded-lg border transition-all shrink-0 ${
-                  isFavorite
-                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60'
-                    : 'bg-white dark:bg-gray-700 border-blue-400 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-600'
-                } ${isFavoriteLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                title={isFavorite ? t('remove_button') : t('add_button')}
-              >
-                {isFavoriteLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400 text-amber-500' : 'text-blue-500'}`} />
-                )}
-                <span>{isFavorite ? t('in_favorites') : t('add_to_favorites')}</span>
-              </button>
-            )}
+            {onToggleFavorite &&
+              (favoriteIconOnly ? (
+                // Icon-only star, pushed flush to the right of the location line.
+                <button
+                  type="button"
+                  onClick={onToggleFavorite}
+                  disabled={isFavoriteLoading}
+                  className={`-mr-2 shrink-0 rounded-full p-2 transition-colors ${
+                    isFavorite
+                      ? 'text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                      : 'text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700'
+                  } ${isFavoriteLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  title={isFavorite ? t('remove_button') : t('add_button')}
+                  aria-label={isFavorite ? t('remove_button') : t('add_button')}
+                >
+                  {isFavoriteLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Star className={`w-5 h-5 ${isFavorite ? 'fill-amber-400 text-amber-500' : ''}`} />
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onToggleFavorite}
+                  disabled={isFavoriteLoading}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs sm:text-sm font-medium rounded-lg border transition-all shrink-0 ${
+                    isFavorite
+                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60'
+                      : 'bg-white dark:bg-gray-700 border-blue-400 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-600'
+                  } ${isFavoriteLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  title={isFavorite ? t('remove_button') : t('add_button')}
+                >
+                  {isFavoriteLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400 text-amber-500' : 'text-blue-500'}`} />
+                  )}
+                  <span>{isFavorite ? t('in_favorites') : t('add_to_favorites')}</span>
+                </button>
+              ))}
           </div>
 
           {/* Line 2: Weather Icon & Temperature */}

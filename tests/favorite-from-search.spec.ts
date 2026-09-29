@@ -198,7 +198,7 @@ test.describe('Add favorite from the search page', () => {
 
     // 1. The logged-in user lands on home: the existing favorite is displayed.
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Paris', exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Paris/ }).first()).toBeVisible({ timeout: 15000 });
 
     // 2. The user searches a new location and adds it with the star action.
     const lyonRow = await addLyonFromSearch(page);
@@ -207,7 +207,7 @@ test.describe('Add favorite from the search page', () => {
     // 3. Back on home, the freshly added favorite is part of the carousel.
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { name: 'Lyon', exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Lyon/ }).first()).toBeVisible({ timeout: 15000 });
 
     // 4. The account management list shows it as well.
     await page.getByRole('link', { name: 'My Account' }).click();
@@ -221,7 +221,7 @@ test.describe('Add favorite from the search page', () => {
     await installFakeBackend(page, { failAddFavorite: true });
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Paris', exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /Paris/ }).first()).toBeVisible({ timeout: 15000 });
 
     const lyonRow = await addLyonFromSearch(page);
 

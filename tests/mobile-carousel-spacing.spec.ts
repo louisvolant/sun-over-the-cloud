@@ -49,7 +49,7 @@ test.describe('Mobile location carousel spacing', () => {
     await installFakeBackend(page);
     await page.setViewportSize({ width: 390, height: 600 });
     await page.goto('/');
-    await page.getByRole('heading', { name: 'Paris', exact: true }).waitFor({ timeout: 15000 });
+    await page.getByRole('heading', { name: /Paris/ }).first().waitFor({ timeout: 15000 });
 
     const gap = await page.evaluate(() => {
       const root = document.querySelector('div.flex.flex-col.h-full');
@@ -67,5 +67,24 @@ test.describe('Mobile location carousel spacing', () => {
     expect(gap).not.toBeNull();
     // With the old `pb-6` this was ~24px; it must now stay small.
     expect(gap as number).toBeLessThanOrEqual(12);
+  });
+
+  test('shows the location name once and keeps the favorite star inside the card', async ({ page }) => {
+    test.setTimeout(60_000);
+    await installFakeBackend(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.getByRole('heading', { name: /Paris/ }).first().waitFor({ timeout: 15000 });
+
+    // No duplicated header: the location name only appears in the
+    // current-conditions box (as part of the heading that also shows the time).
+    await expect(page.getByRole('heading', { name: /Paris/ })).toHaveCount(1);
+    // The favorite star sits on the same line as the name, inside that box.
+    await expect(
+      page
+        .getByRole('heading', { name: /Paris/ })
+        .locator('..')
+        .getByRole('button', { name: 'Remove', exact: true })
+    ).toHaveCount(1);
   });
 });

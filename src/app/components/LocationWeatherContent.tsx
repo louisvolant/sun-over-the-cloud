@@ -26,6 +26,11 @@ interface LocationWeatherContentProps {
   setShowGraphs: (show: boolean) => void;
   graphsError: string | null;
   setGraphsError: (error: string | null) => void;
+  /** Optional favorite action rendered inside the current-conditions box. */
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  isFavoriteLoading?: boolean;
+  favoriteIconOnly?: boolean;
 }
 
 /**
@@ -57,6 +62,10 @@ export default function LocationWeatherContent({
   setShowGraphs,
   graphsError,
   setGraphsError,
+  isFavorite,
+  onToggleFavorite,
+  isFavoriteLoading,
+  favoriteIconOnly,
 }: LocationWeatherContentProps) {
   const { t } = useLanguage();
 
@@ -78,6 +87,10 @@ export default function LocationWeatherContent({
           weatherData={weatherData}
           rainFallsData={rainFallsData}
           snowDepthData={snowDepthData}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          isFavoriteLoading={isFavoriteLoading}
+          favoriteIconOnly={favoriteIconOnly}
         />
       )}
 

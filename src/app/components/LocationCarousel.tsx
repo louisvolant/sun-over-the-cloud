@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, useImperativeHandle } from 'react';
 import useLocationWeather from '@/hooks/useLocationWeather';
 import LocationWeatherContent from './LocationWeatherContent';
 import { useLanguage } from '@/context/LanguageContext';
-import { Star } from 'lucide-react';
 
 export interface CarouselLocation {
   /** Stable React key for the slide (favorite id or coord-based key). */
@@ -47,10 +46,11 @@ interface LocationCarouselProps {
  *  - Each slide owns its data through the shared `useLocationWeather` hook,
  *    exactly like the expanded favorite card view (LocationWeatherContent),
  *    so the slide content is identical to the existing weather boxes.
- *  - Each slide shows a header row (location name + favorite star at the
- *    top-right when the slide maps to a saved favorite). Tapping the star asks
- *    for confirmation (handled by the parent) and removes the location from
- *    the favorites, e.g. the same action as the desktop trash button.
+ *  - Each slide renders the current-conditions box (WeatherDisplay), which
+ *    carries the location name, the local time and — when the slide maps to a
+ *    saved favorite — a compact star at the far right of that line. Tapping it
+ *    asks for confirmation (handled by the parent) and removes the location,
+ *    the same action as the desktop trash button.
  *  - Vertical scrolling inside a slide and horizontal swiping between slides
  *    are handled natively by the nested scrollers (browser directional
  *    locking); no touch-action override is required since the global
@@ -159,8 +159,11 @@ function CarouselSlide({
     locationName: location.name,
     countryCode: location.countryCode,
   });
-  const { t } = useLanguage();
-  const removeTitle = t('remove_favorite_title');
+
+  const handleToggleFavorite =
+    location.favoriteId && onRemoveFavorite
+      ? () => onRemoveFavorite(location.favoriteId!)
+      : undefined;
 
   return (
     // w-full + shrink-0: each slide exactly fills the carousel viewport;
@@ -170,27 +173,16 @@ function CarouselSlide({
     // the dots row `py-2`) sets the gap above the page dots. A large `pb-*`
     // used to double that gap.
     <div className="w-full h-full shrink-0 snap-center flex flex-col px-3 pt-3 pb-2">
-      {/* Slide header: location name + yellow favorite star (remove action) */}
-      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-        <h2 className="font-semibold text-base text-gray-900 dark:text-gray-100 truncate min-w-0">
-          {location.name}
-        </h2>
-        {location.favoriteId && onRemoveFavorite && (
-          <button
-            type="button"
-            onClick={() => onRemoveFavorite(location.favoriteId!)}
-            className="p-2 -mr-1 -mt-1 shrink-0 rounded-full text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-            title={removeTitle}
-            aria-label={removeTitle}
-          >
-            <Star className="w-5 h-5 fill-amber-400" />
-          </button>
-        )}
-      </div>
-
-      {/* Vertically scrollable weather content (current, forecast, graphs) */}
+      {/* Vertically scrollable weather content (current, forecast, graphs).
+          No separate header row: the location name, local time and favorite
+          star all live in the current-conditions box (WeatherDisplay). */}
       <div className="flex-1 overflow-y-auto">
-        <LocationWeatherContent {...weatherState} />
+        <LocationWeatherContent
+          {...weatherState}
+          isFavorite={!!location.favoriteId}
+          onToggleFavorite={handleToggleFavorite}
+          favoriteIconOnly
+        />
       </div>
     </div>
   );
