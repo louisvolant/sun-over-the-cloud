@@ -165,7 +165,11 @@ function CarouselSlide({
   return (
     // w-full + shrink-0: each slide exactly fills the carousel viewport;
     // snap-center: magnetic alignment after a swipe.
-    <div className="w-full h-full shrink-0 snap-center flex flex-col px-3 pt-3 pb-6">
+    // Only a small bottom padding here: the content's own trailing margin is
+    // clipped at the bottom of the scroll area, so this is what (together with
+    // the dots row `py-2`) sets the gap above the page dots. A large `pb-*`
+    // used to double that gap.
+    <div className="w-full h-full shrink-0 snap-center flex flex-col px-3 pt-3 pb-2">
       {/* Slide header: location name + yellow favorite star (remove action) */}
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
         <h2 className="font-semibold text-base text-gray-900 dark:text-gray-100 truncate min-w-0">
