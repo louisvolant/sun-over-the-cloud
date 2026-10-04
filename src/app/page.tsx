@@ -27,6 +27,29 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { Star, Loader2, ArrowUpDown, PlusCircle, X, AlertTriangle } from 'lucide-react';
 
+// Helper to determine if a location matches any favorite in the user's favorites list
+function isLocationInFavorites(
+  loc: { name?: string; location_name?: string; lat?: number; lon?: number; coord?: { lat: number; lon: number } } | null | undefined,
+  favorites: FavoriteLocation[] | null | undefined
+): boolean {
+  if (!loc || !favorites || favorites.length === 0) return false;
+  const name = (loc.name || loc.location_name || '').trim().toLowerCase();
+  const lat = loc.lat ?? loc.coord?.lat;
+  const lon = loc.lon ?? loc.coord?.lon;
+
+  return favorites.some((fav) => {
+    if (name && fav.location_name.trim().toLowerCase() === name) {
+      return true;
+    }
+    if (lat !== undefined && lon !== undefined) {
+      if (Math.abs(fav.latitude - lat) < 0.05 && Math.abs(fav.longitude - lon) < 0.05) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
 const LOCAL_STORAGE_KEY = 'cachedFavorites';
 const LAST_LOCATION_KEY = 'lastSelectedLocation';
 
@@ -46,8 +69,14 @@ export default function Home() {
 
   // User favorites state (when authenticated)
   const [userFavorites, setUserFavorites] = useState<FavoriteLocation[]>([]);
+  const userFavoritesRef = useRef<FavoriteLocation[]>(userFavorites);
+  useEffect(() => {
+    userFavoritesRef.current = userFavorites;
+  }, [userFavorites]);
+
   const [isLoadingUserFavorites, setIsLoadingUserFavorites] = useState(false);
   const [expandedFavoriteId, setExpandedFavoriteId] = useState<string | null>(null);
+  const expandedFavoriteIdRef = useRef<string | null>(null);
   const [isFavoriteActionLoading, setIsFavoriteActionLoading] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   // User-facing message shown when an external sign-in (Google) comes back with
@@ -65,6 +94,12 @@ export default function Home() {
   // Tracks the last coordinates a selection was made for, so the carousel only
   // auto-scrolls when a *new* location is picked (not on background refreshes).
   const lastSelectedCoordRef = useRef<string | null>(null);
+
+  // Refs and flags for desktop single-card expansion and smooth scroll management
+  const searchSectionRef = useRef<HTMLDivElement>(null);
+  const weatherDisplayContainerRef = useRef<HTMLDivElement>(null);
+  const isExplicitUserSearchRef = useRef(false);
+  const isInitialMountRef = useRef(true);
 
   const { t } = useLanguage();
 
@@ -89,9 +124,55 @@ export default function Home() {
     );
   }, [t]);
 
-  const handleLocationSelect = useCallback(async (location: Partial<Location>, isBackground = false) => {
+  const scrollElementIntoComfortableView = useCallback((element: HTMLElement | null, topOffset = 24) => {
+    if (!element) return;
+    // Allow the DOM reflow/layout update to settle after card expansion/collapse
+    setTimeout(() => {
+      element.style.scrollMarginTop = `${topOffset}px`;
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      const rect = element.getBoundingClientRect();
+      const scroller = document.scrollingElement || document.documentElement;
+      const currentY = scroller.scrollTop || document.body.scrollTop || window.scrollY;
+      const targetY = Math.max(0, currentY + rect.top - topOffset);
+
+      if (scroller && scroller.scrollHeight > scroller.clientHeight) {
+        scroller.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+      if (document.body && document.body.scrollHeight > document.body.clientHeight) {
+        document.body.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+      window.scrollTo({ top: targetY, behavior: 'smooth' });
+    }, 50);
+  }, []);
+
+  const scrollToSearch = useCallback(() => {
+    scrollElementIntoComfortableView(searchSectionRef.current, 20);
+  }, [scrollElementIntoComfortableView]);
+
+  const handleClearLastLocation = useCallback(() => {
+    isExplicitUserSearchRef.current = false;
+    setWeatherData(null);
+    setForecastData(null);
+    setPrecipitationData([]);
+    setRainFallsData(null);
+    setSnowDepthData(null);
+    setShowGraphs(false);
+    deleteLocalWeather(LAST_LOCATION_WEATHER_KEY).catch(() => {});
+    try {
+      localStorage.removeItem(LAST_LOCATION_KEY);
+    } catch {}
+  }, []);
+
+  const handleLocationSelect = useCallback(async (location: Partial<Location>, isBackground = false, isExplicit = false) => {
     try {
       if (!isBackground) {
+        // Close any previously opened favorite card so only the search card remains open
+        setExpandedFavoriteId(null);
+        if (isExplicit) {
+          isExplicitUserSearchRef.current = true;
+          scrollToSearch();
+        }
         setIsSearching(true);
         setWeatherData(null);
         setForecastData(null);
@@ -108,6 +189,12 @@ export default function Home() {
         const weatherDataToSet: WeatherData = weather as WeatherData;
         weatherDataToSet.name = location.name || location.location_name || 'Unknown Location';
         weatherDataToSet.country = location.country;
+
+        if (isAuthenticated && !isExplicit && !isExplicitUserSearchRef.current && isLocationInFavorites(weatherDataToSet, userFavoritesRef.current)) {
+          // Automatic restore of a location already in favorites; do not duplicate in search card
+          return;
+        }
+
         setWeatherData(weatherDataToSet);
         setRainFallsData(rainFalls);
         setSnowDepthData(snowDepth);
@@ -161,7 +248,7 @@ export default function Home() {
         setIsSearching(false);
       }
     }
-  }, [t]);
+  }, [scrollToSearch, t]);
 
   // Synchronize updated forecast to IndexedDB
   const handleSetForecastData = useCallback((data: ForecastData | null) => {
@@ -193,7 +280,7 @@ export default function Home() {
         sessionStorage.removeItem(PENDING_SEARCH_SELECTION_KEY);
         const pending = JSON.parse(pendingRaw);
         if (pending?.lat && pending?.lon) {
-          handleLocationSelect(pending, false);
+          handleLocationSelect(pending, false, true);
           return;
         }
       }
@@ -219,7 +306,13 @@ export default function Home() {
 
     // 1. Check local IndexedDB immediately for instant visual display (PWA instant load)
     getLocalWeather(LAST_LOCATION_WEATHER_KEY)
-      .then((cached) => {
+      .then(async (cached) => {
+        const favs = await getLocalFavorites();
+        if (isAuthenticated && cached?.location && isLocationInFavorites(cached.location, favs)) {
+          // If the restored location is already in user favorites, do not duplicate it in the search card
+          return;
+        }
+
         if (cached && cached.location && cached.location.lat && cached.location.lon) {
           const adjusted = getAdjustedWeatherForNow(cached);
           if (adjusted.weather) {
@@ -239,6 +332,9 @@ export default function Home() {
           try {
             const parsed = JSON.parse(savedLocation);
             if (parsed.lat && parsed.lon) {
+              if (isAuthenticated && isLocationInFavorites(parsed, favs)) {
+                return;
+              }
               handleLocationSelect(parsed, false);
               return;
             }
@@ -260,6 +356,9 @@ export default function Home() {
         ) {
           // Slide the 30-day window on use, then restore without prompting.
           writeGeolocationConsent(consentedLocation);
+          if (isAuthenticated && isLocationInFavorites(consentedLocation, favs)) {
+            return;
+          }
           handleLocationSelect({
             name: consentedLocation.name,
             lat: consentedLocation.lat,
@@ -298,6 +397,10 @@ export default function Home() {
               // resolved position for prompt-free restores.
               writeGeolocationConsent({ name: cityName, country: countryCode, lat, lon });
 
+              if (isAuthenticated && isLocationInFavorites({ name: cityName, lat, lon }, userFavoritesRef.current)) {
+                return;
+              }
+
               handleLocationSelect({
                 name: cityName,
                 lat,
@@ -316,7 +419,7 @@ export default function Home() {
       .catch((err) => {
         console.debug('IndexedDB initialization error:', err);
       });
-  }, [handleLocationSelect, t]);
+  }, [handleLocationSelect, isAuthenticated, t]);
 
   // Load user favorites (IndexedDB cache first, then API background sync)
   const loadUserFavorites = useCallback(async () => {
@@ -351,6 +454,59 @@ export default function Home() {
     }
   }, [isAuthenticated, loadUserFavorites]);
 
+  // Suppress automatic search card on initial load if the restored/current location
+  // matches one of the user's favorites, preventing duplicate cards on landing.
+  useEffect(() => {
+    if (!isAuthenticated || isExplicitUserSearchRef.current || !weatherData) return;
+    if (isLocationInFavorites(weatherData, userFavorites)) {
+      setWeatherData(null);
+      setForecastData(null);
+      setPrecipitationData([]);
+      setRainFallsData(null);
+      setSnowDepthData(null);
+      setShowGraphs(false);
+    }
+  }, [isAuthenticated, userFavorites, weatherData]);
+
+  // Scroll management: when a favorite card expands or collapses
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      expandedFavoriteIdRef.current = expandedFavoriteId;
+      return;
+    }
+
+    const prevId = expandedFavoriteIdRef.current;
+    expandedFavoriteIdRef.current = expandedFavoriteId;
+
+    if (expandedFavoriteId) {
+      // Favorite card is expanding.
+      const cardElem = document.querySelector(`[data-favorite-id="${expandedFavoriteId}"]`) as HTMLElement | null;
+      if (cardElem) {
+        scrollElementIntoComfortableView(cardElem, 20);
+      }
+    } else if (prevId && !isExplicitUserSearchRef.current) {
+      // Favorite card was collapsed directly by user.
+      // Ensure the collapsed favorite card stays comfortably in view.
+      const cardElem = document.querySelector(`[data-favorite-id="${prevId}"]`) as HTMLElement | null;
+      if (cardElem) {
+        const rect = cardElem.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+          scrollElementIntoComfortableView(cardElem, 20);
+        }
+      }
+    }
+  }, [expandedFavoriteId, scrollElementIntoComfortableView]);
+
+  // When weatherData is set after an explicit user search, ensure weather card is in view
+  useEffect(() => {
+    if (isExplicitUserSearchRef.current && weatherData) {
+      if (weatherDisplayContainerRef.current) {
+        scrollElementIntoComfortableView(weatherDisplayContainerRef.current, 20);
+      }
+    }
+  }, [weatherData, scrollElementIntoComfortableView]);
+
   const handleRemoveFavorite = useCallback(async (id: string) => {
     // Ask for confirmation on every removal path (mobile carousel star and
     // desktop trash button) so a mis-tap can never destroy a favorite.
@@ -373,8 +529,16 @@ export default function Home() {
   }, [expandedFavoriteId, t]);
 
   const handleToggleExpandFavorite = useCallback((id: string) => {
-    setExpandedFavoriteId((prev) => (prev === id ? null : id));
-  }, []);
+    isExplicitUserSearchRef.current = false;
+    setExpandedFavoriteId((prev) => {
+      const isExpanding = prev !== id;
+      if (isExpanding) {
+        // Dismiss the search weather card so only this favorite card is open
+        handleClearLastLocation();
+      }
+      return isExpanding ? id : null;
+    });
+  }, [handleClearLastLocation]);
 
   // Reordering helpers (for Drag & Drop and buttons)
   const reorderFavorites = useCallback((sourceIndex: number, targetIndex: number) => {
@@ -519,15 +683,6 @@ export default function Home() {
       setIsFavoriteActionLoading(false);
     }
   }, [weatherData, isAuthenticated, currentMatchingFavorite, loadUserFavorites]);
-
-  const handleClearLastLocation = useCallback(() => {
-    setWeatherData(null);
-    setForecastData(null);
-    deleteLocalWeather(LAST_LOCATION_WEATHER_KEY).catch(() => {});
-    try {
-      localStorage.removeItem(LAST_LOCATION_KEY);
-    } catch {}
-  }, []);
 
   // --- Mobile swipeable carousel (logged-in users) ---
 
@@ -703,7 +858,7 @@ export default function Home() {
               {cachedFavorites.map((fav, index) => (
                 <button
                   key={index}
-                  onClick={() => handleLocationSelect({ location_name: fav.location_name, lat: fav.lat, lon: fav.lon, country: fav.country }, false)}
+                  onClick={() => handleLocationSelect({ location_name: fav.location_name, lat: fav.lat, lon: fav.lon, country: fav.country }, false, true)}
                   className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center"
                 >
                   {fav.country && (
@@ -716,25 +871,27 @@ export default function Home() {
           </div>
         )}
 
-        {/* "Nouvelle ville" title displayed above search bar when there are favorites */}
-        {((isAuthenticated && userFavorites.length > 0) || (!isAuthenticated && cachedFavorites.length > 0)) && (
-          <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white flex items-center gap-2">
-            <PlusCircle className="w-5 h-5 text-blue-500" />
-            <span>{t('new_city_title')}</span>
-          </h3>
-        )}
+        <div ref={searchSectionRef}>
+          {/* "Nouvelle ville" title displayed above search bar when there are favorites */}
+          {((isAuthenticated && userFavorites.length > 0) || (!isAuthenticated && cachedFavorites.length > 0)) && (
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-blue-500" />
+              <span>{t('new_city_title')}</span>
+            </h3>
+          )}
 
-        <SearchDisplay
-          city={city}
-          setCity={setCity}
-          onLocationSelect={(loc) => handleLocationSelect(loc, false)}
-          isSearching={isSearching}
-          setIsSearching={setIsSearching}
-          error={error}
-          setError={setError}
-        />
+          <SearchDisplay
+            city={city}
+            setCity={setCity}
+            onLocationSelect={(loc) => handleLocationSelect(loc, false, true)}
+            isSearching={isSearching}
+            setIsSearching={setIsSearching}
+            error={error}
+            setError={setError}
+          />
+        </div>
 
-        <div className="relative">
+        <div ref={weatherDisplayContainerRef} className="relative">
           {weatherData !== null && (
             <button
               type="button"
