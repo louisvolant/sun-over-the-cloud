@@ -73,7 +73,8 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
     <div className="mb-4">
       <div className={`px-2 py-4 sm:p-6 rounded-xl shadow-xs mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-gray-200/80'} text-gray-950 dark:text-gray-100`}>
         <h2 className="text-xl sm:text-2xl font-semibold mb-4">{t('weather_forecast_title')}</h2>
-        <div className="flex flex-col gap-3">
+        {/* Tighter vertical rhythm (gap-2) keeps the expandable day rows compact. */}
+        <div className="flex flex-col gap-2">
           {(() => {
             const timezone = weatherData?.timezone || 'UTC';
             const { grouped, dateLabels } = groupForecastByDay({
@@ -112,11 +113,11 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
               const timeline = mergeTimeline(items, visibleSunEvents);
 
               return (
-                <div key={dateKey} className="flex flex-col border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 pb-3 last:pb-0">
+                <div key={dateKey} className="flex flex-col border-b border-gray-200/70 dark:border-gray-700/60 last:border-b-0 pb-2 last:pb-0">
                   {/* Clickable Header Row */}
                   <div
                     onClick={() => toggleDay(dateKey, index)}
-                    className="flex items-center justify-between flex-nowrap gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer select-none transition-colors"
+                    className="flex items-center justify-between flex-nowrap gap-2 py-1 px-2 -mx-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer select-none transition-colors"
                     role="button"
                     aria-expanded={expanded}
                   >
@@ -124,23 +125,23 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
                       <span className="text-gray-400 dark:text-gray-500 shrink-0">
                         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </span>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+                      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {dateLabels[dateKey]}
                       </h3>
                     </div>
 
-                    <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-gray-100/90 dark:bg-gray-700/80 shadow-2xs border border-gray-200/60 dark:border-gray-600/60 shrink-0">
+                    <div className="flex items-center gap-3 px-3 py-0.5 rounded-full bg-gray-100/90 dark:bg-gray-700/80 shadow-2xs border border-gray-200/60 dark:border-gray-600/60 shrink-0">
                       <div className="flex items-center gap-1.5" title={tWeather(dayDescription)}>
                         <i
-                          className={`wi ${weatherIconMap[dayIcon] || 'wi-day-sunny'} text-xl ${
+                          className={`wi ${weatherIconMap[dayIcon] || 'wi-day-sunny'} text-2xl ${
                             weatherIconColorMap[dayIcon] || 'text-amber-500'
                           }`}
                         />
-                        <span className="capitalize text-xs text-gray-600 dark:text-gray-300 hidden sm:inline font-normal">
+                        <span className="capitalize text-sm text-gray-600 dark:text-gray-300 hidden sm:inline font-normal">
                           {tWeather(dayDescription)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm font-semibold tracking-tight">
+                      <div className="flex items-center gap-1 text-base font-semibold tracking-tight">
                         <span className="text-blue-600 dark:text-blue-400">{minTemp.toFixed(1)}°C</span>
                         <span className="text-gray-300 dark:text-gray-500 font-light">/</span>
                         <span className="text-red-500 dark:text-red-400">{maxTemp.toFixed(1)}°C</span>
