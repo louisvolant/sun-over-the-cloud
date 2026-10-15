@@ -268,12 +268,12 @@ test.describe('UI Navigation and Interactions', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
 
-    // Direct text children of the flex row: 2 links, 2 separators and the copyright span.
+    // Direct text children of the flex row: 2 external links, 2 legal links, 4 separators and the copyright span.
     const tops = await page.locator('footer > div > a, footer > div > span').evaluateAll((nodes) =>
       nodes.map((node) => Math.round((node as HTMLElement).getBoundingClientRect().top)),
     );
 
-    expect(tops.length).toBe(5);
+    expect(tops.length).toBe(9);
     expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
 
     // The theme toggle stays on the same row too, vertically centred.

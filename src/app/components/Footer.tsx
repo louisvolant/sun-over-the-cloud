@@ -28,6 +28,20 @@ export default function Footer() {
             <span className="text-gray-400 dark:text-gray-500">|</span>
           </Fragment>
         ))}
+        <Link
+          href="/privacy"
+          className="hover:text-gray-800 dark:hover:text-gray-100"
+        >
+          {t('footer_privacy')}
+        </Link>
+        <span className="text-gray-400 dark:text-gray-500">|</span>
+        <Link
+          href="/terms"
+          className="hover:text-gray-800 dark:hover:text-gray-100"
+        >
+          {t('footer_terms')}
+        </Link>
+        <span className="text-gray-400 dark:text-gray-500">|</span>
         <span>{t('footer_copyright', { year: new Date().getFullYear() })}</span>
         <button
           onClick={toggleDarkMode}
