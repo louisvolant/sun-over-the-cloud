@@ -60,6 +60,7 @@ A progressive weather web application designed for exploring live meteorological
 - **Optimistic Auth**: Favorites render instantly from a local session flag, with background verification and a header sync spinner.
 - **Privacy Policy & Terms of Service**: Dedicated legal routes ([`/privacy`](/privacy) and [`/terms`](/terms)) detailing data protection (minimal retention, Argon2 credential hashing, client-side geolocation consent, GDPR account deletion rights) and service conditions. Both pages support dark mode, responsive typography, and full English, French, and Spanish translations.
 - **Footer Links**: Links to the author's Personal Page (`louisvolant.com`), Portfolio (`louisvolant.com/portfolio`), Privacy Policy, Terms of Service, copyright notice, and the theme toggle share a single compact footer row.
+- **Sitemap & Search Engine Optimization (SEO)**: Dynamically generated [`/sitemap.xml`](/sitemap.xml) via Next.js App Router metadata route covering all public indexable pages (`/`, `/search`, `/register`, `/privacy`, `/terms`) with optimized change frequencies and priorities. Private user portals (`/account`) and internal APIs (`/api/`) are disallowed in `robots.txt` to prevent search engine indexing of authenticated surfaces.
 
 ---
 
