@@ -27,6 +27,13 @@ export interface Location {
   location_name?: string;
 }
 
+export interface MinutelyCastSlot {
+  dt: number;
+  precipitation: number;
+  rain?: number;
+  snowfall?: number;
+}
+
 export interface WeatherData {
   name: string;
   country?: string;
@@ -44,6 +51,7 @@ export interface WeatherData {
   timezone: string;
   timezone_offset: number;
   sys: { sunrise: number; sunset: number };
+  minutely_15?: MinutelyCastSlot[];
 }
 
 export interface PrecipitationData {

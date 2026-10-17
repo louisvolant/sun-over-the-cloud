@@ -100,6 +100,13 @@ test.describe('Weather and Geocoding APIs', () => {
     expect(body).toHaveProperty('daily');
     expect(Array.isArray(body.daily)).toBe(true);
 
+    expect(body).toHaveProperty('minutely_15');
+    expect(Array.isArray(body.minutely_15)).toBe(true);
+    if (body.minutely_15.length > 0) {
+      expect(typeof body.minutely_15[0].dt).toBe('number');
+      expect(typeof body.minutely_15[0].precipitation).toBe('number');
+    }
+
     expect(body).toHaveProperty('timezone');
     expect(body.timezone).toBe('Europe/Paris');
   });

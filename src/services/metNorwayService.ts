@@ -1,13 +1,16 @@
 // src/services/metNorwayService.ts
 import * as SunCalc from 'suncalc';
 import tzLookup from 'tz-lookup';
+import { MinutelyCastSlot } from '@/lib/types';
 
 const MET_API_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
+const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const DEFAULT_USER_AGENT = 'SunOverTheCloud/1.0 (https://github.com/louisvolant/sun-over-the-cloud; contact@sunoverthecloud.com)';
 // Bound the outbound call so a slow MET Norway response can never make a
 // Worker handler hang (axios used to rely on the Node.js http stack and hang
 // until the runtime cancelled the request).
 const MET_TIMEOUT_MS = 10_000;
+const MINUTELY_15_CACHE_TTL_MS = 10 * 60 * 1000;
 
 // Minimal typings for the MET Norway timeseries fields consumed by this service.
 interface MetInstantDetails {
@@ -207,14 +210,81 @@ export async function fetchLocationForecast(latitude: number, longitude: number)
   }
 }
 
+const minutely15Cache = new Map<string, { data: MinutelyCastSlot[]; expiresAt: number }>();
+
 /**
- * Get current weather and next-24h rain/snow summary compatible with /api/onecall.
+ * Fetch 15-minute high-resolution precipitation slots from Open-Meteo for the upcoming hours.
+ * Best-effort: returns an empty array if the upstream request fails so /api/onecall never breaks.
+ */
+export async function fetchMinutely15Precipitation(latitude: number, longitude: number): Promise<MinutelyCastSlot[]> {
+  const lat = Number(latitude.toFixed(4));
+  const lon = Number(longitude.toFixed(4));
+  const cacheKey = `m15_${lat},${lon}`;
+  const now = Date.now();
+  const nowSec = Math.floor(now / 1000);
+
+  const cached = minutely15Cache.get(cacheKey);
+  if (cached && now < cached.expiresAt) {
+    return cached.data.filter((slot) => slot.dt + 900 > nowSec);
+  }
+
+  try {
+    const query = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      minutely_15: 'precipitation,rain,snowfall',
+      forecast_minutely_15: '12',
+      timeformat: 'unixtime',
+    });
+
+    const response = await fetch(`${OPEN_METEO_FORECAST_URL}?${query.toString()}`, {
+      signal: AbortSignal.timeout(MET_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Open-Meteo minutely_15 responded with status ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const minutely = payload?.minutely_15;
+    const times: number[] = Array.isArray(minutely?.time) ? minutely.time : [];
+    const precipArr: number[] = Array.isArray(minutely?.precipitation) ? minutely.precipitation : [];
+    const rainArr: number[] = Array.isArray(minutely?.rain) ? minutely.rain : [];
+    const snowArr: number[] = Array.isArray(minutely?.snowfall) ? minutely.snowfall : [];
+
+    const slots: MinutelyCastSlot[] = times.map((dt, index) => ({
+      dt,
+      precipitation: Number(precipArr[index] ?? 0),
+      rain: Number(rainArr[index] ?? 0),
+      snowfall: Number(snowArr[index] ?? 0),
+    }));
+
+    minutely15Cache.set(cacheKey, {
+      data: slots,
+      expiresAt: now + MINUTELY_15_CACHE_TTL_MS,
+    });
+
+    return slots.filter((slot) => slot.dt + 900 > nowSec);
+  } catch (error: unknown) {
+    if (cached && cached.data) {
+      return cached.data.filter((slot) => slot.dt + 900 > nowSec);
+    }
+    console.warn(`Open-Meteo minutely_15 fetch failed for ${cacheKey}:`, error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+/**
+ * Get current weather, next-24h rain/snow summary, and 15-minute precipitation slots compatible with /api/onecall.
  */
 export async function getCurrentWeather(latitude: number, longitude: number) {
   const lat = Number(latitude.toFixed(4));
   const lon = Number(longitude.toFixed(4));
 
-  const forecast = await fetchLocationForecast(lat, lon);
+  const [forecast, minutely15Slots] = await Promise.all([
+    fetchLocationForecast(lat, lon),
+    fetchMinutely15Precipitation(lat, lon),
+  ]);
   const timeseries = (forecast?.properties?.timeseries ?? []) as MetTimeseriesPoint[];
 
   if (!timeseries || timeseries.length === 0) {
@@ -289,6 +359,7 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
         snow: snowTotal > 0 ? Math.round(snowTotal * 10) / 10 : null,
       },
     ],
+    minutely_15: minutely15Slots.slice(0, 8),
     timezone,
     timezone_offset: timezoneOffset,
   };

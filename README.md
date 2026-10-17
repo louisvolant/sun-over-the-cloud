@@ -6,7 +6,7 @@ A progressive weather web application designed for exploring live meteorological
 
 ## Features
 
-- **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway.
+- **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway, enriched with 15-minute high-resolution next-hour precipitation forecasts (`minutely_15`) from Open-Meteo.
 - **Monthly Climate History Graphs**: Interactive bar and line charts for monthly precipitation, humidity, and cloud cover powered by Open-Meteo.
 - **Mobile-Optimized PWA Experience & Zoom Prevention**:
   - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-y`, `overflow-x: hidden`, `overscroll-behavior-x: none`, and WebKit gesture suppression).
@@ -31,8 +31,8 @@ A progressive weather web application designed for exploring live meteorological
 - **Instant Visual Load via Local Database (IndexedDB & PWA Stale-While-Revalidate)**:
   - Local IndexedDB database (`sun_over_the_cloud_pwa_db`) stores weather snapshots, multi-day forecasts, and user favorites.
   - On app launch, cached information is rendered immediately (0ms visual delay) instead of waiting for network requests.
-  - **Smart Expiration Filtering**: Expired past forecast hours from previous days or earlier today are automatically filtered out. When opening after an interval, current conditions are seamlessly projected from the forecast prediction for the current hour, preventing outdated historical metrics from being displayed.
-  - **Transparent Background Synchronization**: Fresh meteorological observations and multi-day forecasts are fetched in the background from MET Norway, smoothly updating the interface and local IndexedDB store.
+  - **Smart Expiration Filtering**: Expired past forecast hours and elapsed 15-minute precipitation slots are automatically filtered out. When opening after an interval, current conditions are seamlessly projected from the forecast prediction for the current hour, preventing outdated historical metrics from being displayed.
+  - **Transparent Background Synchronization**: Fresh meteorological observations and multi-day forecasts are fetched in the background from MET Norway and Open-Meteo, smoothly updating the interface and local IndexedDB store.
 - **Favorite Locations on Home**:
   - When logged in, favorite locations are displayed as cards directly above the search bar (desktop; on mobile they are presented as the swipeable carousel described above).
   - Collapsed view displays location name, country flag, current temperature, and weather icon/condition with a quick un-favorite action button.

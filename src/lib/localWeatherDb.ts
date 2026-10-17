@@ -1,7 +1,7 @@
 // src/lib/localWeatherDb.ts
 'use client';
 
-import { WeatherData, ForecastData, FavoriteLocation } from './types';
+import { WeatherData, ForecastData, FavoriteLocation, MinutelyCastSlot } from './types';
 
 export interface LocalCachedWeather {
   key: string;
@@ -99,6 +99,17 @@ export function filterForecastFromNow(forecast: ForecastData | null): ForecastDa
 }
 
 /**
+ * Filters 15-minute precipitation slots so only ongoing or upcoming slots are kept.
+ */
+export function filterMinutely15FromNow(slots?: MinutelyCastSlot[]): MinutelyCastSlot[] {
+  if (!Array.isArray(slots) || slots.length === 0) {
+    return [];
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  return slots.filter((slot) => slot.dt + 900 > nowSec);
+}
+
+/**
  * Evaluates cached weather and forecast data against the current time.
  * If data was saved yesterday or hours ago, expired forecast hours are filtered out.
  * If cached current weather is older than 2 hours, attempts to reconstruct current
@@ -128,10 +139,13 @@ export function getAdjustedWeatherForNow(cached: LocalCachedWeather | null): {
   // Stale threshold: 2 hours
   const isStale = ageMs > 2 * 3600 * 1000;
 
-  // 1. Fresh cache: Return directly
+  // 1. Fresh cache: Return directly with expired 15-minute slots stripped out
   if (!isStale && cached.weather) {
     return {
-      weather: cached.weather,
+      weather: {
+        ...cached.weather,
+        minutely_15: filterMinutely15FromNow(cached.weather.minutely_15),
+      },
       forecast: filteredForecast,
       rainFalls: cached.rainFalls,
       snowDepth: cached.snowDepth,
@@ -140,7 +154,9 @@ export function getAdjustedWeatherForNow(cached: LocalCachedWeather | null): {
   }
 
   // 2. Cache is older than 2 hours (e.g. from yesterday or earlier today):
-  let adjustedWeather: WeatherData | null = cached.weather ? { ...cached.weather } : null;
+  let adjustedWeather: WeatherData | null = cached.weather
+    ? { ...cached.weather, minutely_15: [] }
+    : null;
 
   if (filteredForecast && filteredForecast.list.length > 0) {
     const nowSec = Math.floor(now / 1000);
