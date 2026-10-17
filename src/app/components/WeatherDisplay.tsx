@@ -95,6 +95,18 @@ export default function WeatherDisplay({
 
   const iconCode = weatherData.weather[0]?.icon || '01d';
 
+  // Select the next 4 upcoming 15-minute slots whose 15-min window has not ended yet
+  const nowSec = Math.floor(Date.now() / 1000);
+  const rawMinutelySlots = Array.isArray(weatherData.minutely_15) ? weatherData.minutely_15 : [];
+  const nextFourMinutelySlots = rawMinutelySlots
+    .filter((slot) => slot.dt + 900 > nowSec)
+    .slice(0, 4);
+  const hasUpcomingRain =
+    nextFourMinutelySlots.length > 0 &&
+    nextFourMinutelySlots.some(
+      (slot) => (slot.precipitation ?? 0) > 0 || (slot.rain ?? 0) > 0 || (slot.snowfall ?? 0) > 0
+    );
+
   return (
     <div className={`p-4 md:p-5 rounded-xl mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 text-gray-900'} shadow-sm transition-all`}>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -240,6 +252,57 @@ export default function WeatherDisplay({
           </div>
         </div>
       </div>
+
+      {/* Bottom Section: Next-hour 15-minute precipitation forecast (only rendered when rain/snow is expected) */}
+      {hasUpcomingRain && (
+        <div
+          data-testid="next-hour-precipitation"
+          className="mt-3 pt-3 border-t border-gray-200/80 dark:border-gray-700/80"
+        >
+          <div className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
+            <CloudRain className="w-4 h-4 text-blue-500 shrink-0" />
+            <span>{t('rain_next_hour_title')}</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {nextFourMinutelySlots.map((slot) => {
+              const amount = slot.precipitation ?? slot.rain ?? 0;
+              const isRainingSlot = amount > 0;
+              const intensityPct = isRainingSlot
+                ? Math.min(100, Math.max(20, Math.round((amount / 2.0) * 100)))
+                : 0;
+
+              return (
+                <div
+                  key={slot.dt}
+                  data-testid="next-hour-rain-slot"
+                  className={`flex flex-col items-center rounded-lg px-2 py-1.5 border text-xs transition-colors ${
+                    isRainingSlot
+                      ? darkMode
+                        ? 'bg-blue-950/40 border-blue-800/70 text-blue-200'
+                        : 'bg-blue-100/70 border-blue-200 text-blue-900'
+                      : darkMode
+                        ? 'bg-gray-900/50 border-gray-700/70 text-gray-400'
+                        : 'bg-white/70 border-gray-200/70 text-gray-500'
+                  }`}
+                >
+                  <span className="font-medium">{formatTime(slot.dt, timezone)}</span>
+                  <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden my-1">
+                    {isRainingSlot && (
+                      <div
+                        className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all"
+                        style={{ width: `${intensityPct}%` }}
+                      />
+                    )}
+                  </div>
+                  <span className="text-[11px] sm:text-xs font-semibold">
+                    {amount.toFixed(1)} {t('rain_unit')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

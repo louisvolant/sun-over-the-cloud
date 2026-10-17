@@ -7,6 +7,7 @@ A progressive weather web application designed for exploring live meteorological
 ## Features
 
 - **Live Weather & Forecasts**: Real-time temperature, feels-like, wind, humidity, sunrise/sunset, and precipitation data powered by MET Norway, enriched with 15-minute high-resolution next-hour precipitation forecasts (`minutely_15`) from Open-Meteo.
+  - **Next-Hour 15-Minute Rain Forecast**: Whenever precipitation is expected within the next 60 minutes, the top current-weather card on both desktop and mobile automatically displays a "Rain in the next hour" section with the upcoming 4 quarter-hour (15-minute) slots, showing each slot's local time, visual intensity bar, and millimeter amount (`mm`). When all 4 upcoming 15-minute slots are dry (`0 mm`), the section remains hidden to keep the card compact.
 - **Monthly Climate History Graphs**: Interactive bar and line charts for monthly precipitation, humidity, and cloud cover powered by Open-Meteo.
 - **Mobile-Optimized PWA Experience & Zoom Prevention**:
   - Native application feel with touch gestures configured to prevent accidental pinch and double-tap zooming (`viewport` non-scalable, `touch-action: pan-y`, `overflow-x: hidden`, `overscroll-behavior-x: none`, and WebKit gesture suppression).
