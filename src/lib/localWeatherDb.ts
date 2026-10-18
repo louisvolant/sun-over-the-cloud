@@ -2,6 +2,7 @@
 'use client';
 
 import { WeatherData, ForecastData, FavoriteLocation, MinutelyCastSlot } from './types';
+import { FAVORITES_UPDATED_EVENT } from './constants';
 import { debugLog } from './logger';
 
 export interface LocalCachedWeather {
@@ -292,6 +293,9 @@ export async function getLocalWeather(key: string): Promise<LocalCachedWeather |
  * Save user favorites list to IndexedDB.
  */
 export async function saveLocalFavorites(favorites: FavoriteLocation[]): Promise<void> {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(FAVORITES_UPDATED_EVENT, { detail: favorites }));
+  }
   const db = await openDB();
   if (!db) return;
 

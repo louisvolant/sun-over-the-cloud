@@ -42,6 +42,7 @@
   "footer_copyright": "© {year} SunOverThe.Cloud. Tous droits réservés.",
   "footer_nav_label": "Navigation mobile",
   "footer_nav_home": "Accueil",
+  "footer_nav_favorites": "Favoris",
   "footer_nav_search": "Rechercher",
   "footer_nav_account": "Mon compte",
   "toggle_dark_mode": "Basculer le mode sombre",

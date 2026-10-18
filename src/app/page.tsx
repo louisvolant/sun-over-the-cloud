@@ -14,7 +14,7 @@ import {
   LAST_LOCATION_WEATHER_KEY,
 } from '@/lib/localWeatherDb';
 import { Location, WeatherData, PrecipitationData, ForecastData, CachedFavoriteLocation, FavoriteLocation } from '@/lib/types';
-import { PENDING_SEARCH_SELECTION_KEY } from '@/lib/constants';
+import { PENDING_SEARCH_SELECTION_KEY, PENDING_FAVORITE_SELECTION_KEY } from '@/lib/constants';
 import { isGeolocationConsentValid, readGeolocationConsent, writeGeolocationConsent } from '@/lib/geolocation';
 import WeatherDisplay from './components/WeatherDisplay';
 import ForecastDisplay from './components/ForecastDisplay';
@@ -704,6 +704,42 @@ export default function Home() {
       lon: fav.longitude,
       favoriteId: fav._id,
     }));
+  }, [isAuthenticated, userFavorites]);
+
+  // Consume a pending favorite selection handed over by the dedicated mobile
+  // `/favorites` vertical list page and jump directly to its carousel slide.
+  const pendingFavoriteRef = useRef<{ id?: string; lat?: number; lon?: number } | null>(null);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(PENDING_FAVORITE_SELECTION_KEY);
+      if (raw) {
+        sessionStorage.removeItem(PENDING_FAVORITE_SELECTION_KEY);
+        pendingFavoriteRef.current = JSON.parse(raw);
+      }
+    } catch (e) {
+      debugLog('Failed to read pending favorite selection:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const target = pendingFavoriteRef.current;
+    if (!isAuthenticated || !target || userFavorites.length === 0) return;
+
+    const favIndex = userFavorites.findIndex(
+      (f) =>
+        (target.id && f._id === target.id) ||
+        (target.lat !== undefined &&
+          target.lon !== undefined &&
+          Math.abs(f.latitude - target.lat) < 0.05 &&
+          Math.abs(f.longitude - target.lon) < 0.05)
+    );
+    if (favIndex !== -1) {
+      pendingFavoriteRef.current = null;
+      carouselRef.current?.scrollToIndex(favIndex, 'instant');
+      requestAnimationFrame(() => {
+        carouselRef.current?.scrollToIndex(favIndex, 'instant');
+      });
+    }
   }, [isAuthenticated, userFavorites]);
 
   // Bring the matching favorite slide into view when the currently displayed

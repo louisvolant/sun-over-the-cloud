@@ -18,8 +18,8 @@ export interface CarouselLocation {
 }
 
 export interface LocationCarouselHandle {
-  /** Programmatically bring a slide into view (e.g. after a search selection). */
-  scrollToIndex: (index: number) => void;
+  /** Programmatically bring a slide into view (e.g. after a search or favorites list selection). */
+  scrollToIndex: (index: number, behavior?: ScrollBehavior) => void;
 }
 
 interface LocationCarouselProps {
@@ -62,13 +62,18 @@ export default function LocationCarousel({ locations, ref, onRemoveFavorite }: L
   const { t } = useLanguage();
 
   // Expose an imperative handle so the parent can focus a slide (e.g. when a
-  // location is picked from the mobile search panel).
+  // location is picked from the mobile search panel or favorites list).
   useImperativeHandle(ref, () => ({
-    scrollToIndex: (index: number) => {
+    scrollToIndex: (index: number, behavior: ScrollBehavior = 'smooth') => {
       const el = scrollRef.current;
-      if (!el) return;
       const clamped = Math.max(0, Math.min(index, locations.length - 1));
-      el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
+      setActiveIndex(clamped);
+      if (!el) return;
+      if (behavior === 'instant') {
+        el.scrollLeft = clamped * el.clientWidth;
+      } else {
+        el.scrollTo({ left: clamped * el.clientWidth, behavior });
+      }
     },
   }), [locations.length]);
 
