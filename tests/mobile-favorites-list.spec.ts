@@ -121,6 +121,21 @@ test.describe('Mobile sticky footer favorites list shortcut', () => {
     // Clicking the icon navigates to the vertical favorites list page (/favorites)
     await favNavButton.click();
     await expect(page).toHaveURL(/\/favorites$/);
+    await expect(page.getByRole('heading', { name: 'My Favorite Locations' })).toBeVisible();
+
+    // Switch language to French and verify the page heading and footer nav label are translated
+    const langSelect = page.locator('select[aria-label="Select language"]').last();
+    await langSelect.selectOption('fr');
+    await expect(page.getByRole('heading', { name: 'Mes lieux favoris' })).toBeVisible();
+    await expect(favNavButton).toContainText('Favoris');
+
+    // Switch language to Spanish and verify translation
+    await langSelect.selectOption('es');
+    await expect(page.getByRole('heading', { name: 'Mis ubicaciones favoritas' })).toBeVisible();
+    await expect(favNavButton).toContainText('Favoritos');
+
+    // Switch back to English
+    await langSelect.selectOption('en');
 
     const rows = page.getByTestId('mobile-favorite-list-item');
     await expect(rows).toHaveCount(3);

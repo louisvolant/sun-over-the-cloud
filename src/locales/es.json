@@ -88,6 +88,7 @@
   "enter_city_favorite_placeholder": "Introduce una ciudad para añadir como favorita",
   "no_results_found_for": "No se encontraron resultados para '{search_city}'.",
   "add_button": "Añadir",
+  "my_favorites": "Mis ubicaciones favoritas",
   "my_favorite_locations_title": "Mis Ubicaciones Favoritas",
   "organize_favorites": "Organizar",
   "done_organizing": "Hecho",
