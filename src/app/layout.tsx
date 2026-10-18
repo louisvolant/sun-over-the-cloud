@@ -82,7 +82,10 @@ export default function RootLayout({
                   <HeaderButtons />
                 </div>
               </header>
-              <main className="flex-grow bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+              {/* On mobile, give <main> a minimum height spanning the viewport below the header
+                  so BottomControls and Footer stay below the fold on short pages (e.g. /search
+                  before any query) and only appear when the user scrolls down. */}
+              <main className="flex-grow min-h-[calc(100dvh-3.75rem-var(--safe-top))] md:min-h-0 bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
                 {children}
               </main>
               <BottomControls />

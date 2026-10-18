@@ -146,6 +146,46 @@ test.describe('UI Navigation and Interactions', () => {
     await expect(page.locator('input[type="text"]')).toBeVisible();
   });
 
+  test('Mobile /search keeps BottomControls and Footer below the fold until scrolling down', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/search');
+    await expect(page.locator('input[type="text"]')).toBeVisible();
+
+    // Before scrolling, BottomControls and Footer must sit below the viewport fold
+    // (and below the top edge of the fixed bottom navigation bar).
+    const initialGeometry = await page.evaluate(() => {
+      const nav = document.querySelector('nav.fixed') as HTMLElement | null;
+      const footer = document.querySelector('footer') as HTMLElement | null;
+      const bottomControls = footer?.previousElementSibling as HTMLElement | null;
+      if (!nav || !footer || !bottomControls) return null;
+      return {
+        viewportHeight: window.innerHeight,
+        navTop: nav.getBoundingClientRect().top,
+        bottomControlsTop: bottomControls.getBoundingClientRect().top,
+        footerTop: footer.getBoundingClientRect().top,
+      };
+    });
+
+    expect(initialGeometry).not.toBeNull();
+    expect(initialGeometry!.bottomControlsTop).toBeGreaterThanOrEqual(initialGeometry!.navTop);
+    expect(initialGeometry!.footerTop).toBeGreaterThanOrEqual(initialGeometry!.viewportHeight);
+
+    // After scrolling to the bottom, Footer is revealed above the sticky bottom navigation bar.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const scrolledGeometry = await page.evaluate(() => {
+      const nav = document.querySelector('nav.fixed') as HTMLElement | null;
+      const footer = document.querySelector('footer') as HTMLElement | null;
+      if (!nav || !footer) return null;
+      return {
+        navTop: nav.getBoundingClientRect().top,
+        footerBottom: footer.getBoundingClientRect().bottom,
+      };
+    });
+
+    expect(scrolledGeometry).not.toBeNull();
+    expect(scrolledGeometry!.footerBottom).toBeLessThanOrEqual(scrolledGeometry!.navTop + 1);
+  });
+
   test('Searching location displays an add-to-favorites action button on search result', async ({ page }) => {
     await page.goto('/');
     const searchInput = page.locator('input[type="text"]');

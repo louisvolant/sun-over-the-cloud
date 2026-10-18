@@ -28,7 +28,7 @@ A progressive weather web application designed for exploring live meteorological
     - Built on native CSS scroll-snap (no carousel dependency); each slide scrolls vertically while swiping switches slides horizontally.
     - Every slide owns its data through the shared `useLocationWeather` hook: instant render from the IndexedDB cache, then transparent background refresh (same stale-while-revalidate lifecycle as favorite cards).
     - The last selected/searched location appears as an extra first slide while it does not match any favorite, and a fresh search selection (from the dedicated `/search` page) automatically brings its slide into view.
-  - **Mobile Bottom Bar**: Language selector and logout button positioned cleanly at the bottom of the page before the footer.
+  - **Mobile Bottom Bar & Below-the-Fold Footer**: Language selector (`BottomControls`) and logout button are positioned cleanly at the bottom of the page before the footer. On mobile viewports, `<main>` reserves at least the full viewport height below the header (`min-h-[calc(100dvh-3.75rem-var(--safe-top))]`), ensuring that on short pages (such as `/search` before any query is entered) `BottomControls` and `Footer` remain below the fold and only appear above the sticky navigation bar when scrolling down.
 - **Instant Visual Load via Local Database (IndexedDB & PWA Stale-While-Revalidate)**:
   - Local IndexedDB database (`sun_over_the_cloud_pwa_db`) stores weather snapshots, multi-day forecasts, and user favorites.
   - On app launch, cached information is rendered immediately (0ms visual delay) instead of waiting for network requests.
