@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { debugLog } from './logger';
 
 const api = axios.create({
   baseURL: '',
@@ -19,7 +20,7 @@ export const getDistance = (lat1: number, lon1: number, lat2: number, lon2: numb
 
 export async function search(city: string) {
   const url = '/api/search?city=' + encodeURIComponent(city);
-  console.log('Fetching data from:', url);
+  debugLog('Fetching data from:', url);
   const response = await api.get(url);
   return response.data;
 }

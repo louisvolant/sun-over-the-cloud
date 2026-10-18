@@ -1,5 +1,6 @@
 // src/lib/forecastGrouping.ts
 import { ForecastData } from './types';
+import { debugLog } from './logger';
 
 export interface GroupForecastOptions {
   forecast: ForecastData;
@@ -86,7 +87,7 @@ export const formatForecastTime = (
       hour12: false,
     }).format(new Date(timestamp * 1000));
   } catch (error) {
-    console.debug('Error in formatForecastTime:', error);
+    debugLog('Error in formatForecastTime:', error);
     formattedTime = new Intl.DateTimeFormat(locale, {
       hour: '2-digit',
       minute: '2-digit',

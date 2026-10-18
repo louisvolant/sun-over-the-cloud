@@ -25,6 +25,7 @@ import LoginModal from './components/LoginModal';
 import LocationCarousel, { LocationCarouselHandle, CarouselLocation } from './components/LocationCarousel';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
+import { debugLog } from '@/lib/logger';
 import { Star, Loader2, ArrowUpDown, PlusCircle, X, AlertTriangle } from 'lucide-react';
 
 // Helper to determine if a location matches any favorite in the user's favorites list
@@ -205,7 +206,7 @@ export default function Home() {
           freshForecast = await getForecast(location.lat!.toString(), location.lon!.toString());
           setForecastData(freshForecast);
         } catch (forecastErr) {
-          console.debug('Failed background forecast fetch:', forecastErr);
+          debugLog('Failed background forecast fetch:', forecastErr);
         }
 
         // Save last location to IndexedDB for instant reload on next app open
@@ -221,7 +222,7 @@ export default function Home() {
           rainFalls,
           snowDepth,
           forecast: freshForecast,
-        }).catch((dbErr) => console.debug('Failed saving last location to IndexedDB:', dbErr));
+        }).catch((dbErr) => debugLog('Failed saving last location to IndexedDB:', dbErr));
 
         // Save last location to localStorage as fallback
         try {
@@ -233,7 +234,7 @@ export default function Home() {
             location_name: weatherDataToSet.name,
           }));
         } catch (e) {
-          console.debug('Failed to save location to localStorage:', e);
+          debugLog('Failed to save location to localStorage:', e);
         }
       } else if (!isBackground) {
         setError(t('failed_to_fetch_weather_data'));
@@ -266,7 +267,7 @@ export default function Home() {
         rainFalls: rainFallsData,
         snowDepth: snowDepthData,
         forecast: data,
-      }).catch((err) => console.debug('Failed updating forecast in IndexedDB:', err));
+      }).catch((err) => debugLog('Failed updating forecast in IndexedDB:', err));
     }
   }, [weatherData, rainFallsData, snowDepthData]);
 
@@ -285,7 +286,7 @@ export default function Home() {
         }
       }
     } catch (e) {
-      console.debug('Failed to read pending search selection:', e);
+      debugLog('Failed to read pending search selection:', e);
     }
 
     const storedFavorites = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -339,7 +340,7 @@ export default function Home() {
               return;
             }
           } catch (e) {
-            console.debug('Failed to parse saved location:', e);
+            debugLog('Failed to parse saved location:', e);
           }
         }
 
@@ -390,7 +391,7 @@ export default function Home() {
                   }
                 }
               } catch (e) {
-                console.debug('Reverse geocoding error:', e);
+                debugLog('Reverse geocoding error:', e);
               }
 
               // Remember the authorization for 30 days (sliding) and store the
@@ -410,14 +411,14 @@ export default function Home() {
               }, false);
             },
             (geoError) => {
-              console.debug('Geolocation prompt dismissed or denied:', geoError.message);
+              debugLog('Geolocation prompt dismissed or denied:', geoError.message);
             },
             { timeout: 8000, maximumAge: 60000 }
           );
         }
       })
       .catch((err) => {
-        console.debug('IndexedDB initialization error:', err);
+        debugLog('IndexedDB initialization error:', err);
       });
   }, [handleLocationSelect, isAuthenticated, t]);
 
@@ -437,7 +438,7 @@ export default function Home() {
       // 2. Fetch fresh favorites in background
       const favs = await getFavorites();
       setUserFavorites(favs);
-      saveLocalFavorites(favs).catch((err) => console.debug('Failed saving favorites to IndexedDB:', err));
+      saveLocalFavorites(favs).catch((err) => debugLog('Failed saving favorites to IndexedDB:', err));
     } catch (err) {
       console.error('Error fetching user favorites:', err);
     } finally {
@@ -550,7 +551,7 @@ export default function Home() {
       updated.splice(targetIndex, 0, moved);
 
       // Save to IndexedDB immediately
-      saveLocalFavorites(updated).catch((err) => console.debug('Failed saving reordered favorites:', err));
+      saveLocalFavorites(updated).catch((err) => debugLog('Failed saving reordered favorites:', err));
 
       // Persist to server
       updateFavoriteOrder(updated.map((f) => f._id)).catch((err) => {

@@ -101,6 +101,16 @@ Open [http://localhost:3000](http://localhost:3000) with your browser. `next dev
 npm run preview
 ```
 
+### Browser Console Debug Logging (`DEBUG=TRUE`)
+
+By default, verbose client-side debug logs (weather payload inspection, IANA timezone formatting, `useEffect` trace logs, and IndexedDB cache diagnostics) are suppressed to keep the browser console clean. To enable them at runtime, open the browser DevTools console and run:
+
+```js
+DEBUG=TRUE
+// or persist across reloads:
+localStorage.setItem('DEBUG', 'TRUE')
+```
+
 ### Quality Verification
 
 Before committing or pushing changes:

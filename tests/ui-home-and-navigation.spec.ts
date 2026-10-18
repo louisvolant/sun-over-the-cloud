@@ -335,6 +335,40 @@ test.describe('UI Navigation and Interactions', () => {
     await alert.getByRole('button', { name: /dismiss/i }).click();
     await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
   });
+
+  test('Client debug logs are suppressed by default and only emitted when DEBUG=TRUE is set in the console', async ({ page }) => {
+    const consoleMessages: string[] = [];
+    page.on('console', (msg) => {
+      consoleMessages.push(msg.text());
+    });
+
+    await page.goto('/');
+    const searchInput = page.locator('input[type="text"]');
+    await searchInput.fill('Paris');
+    const searchButton = page.locator('button', { hasText: /search/i }).first();
+    await searchButton.click();
+
+    const resultItem = page.locator('div.cursor-pointer', { hasText: /Paris/i }).first();
+    await expect(resultItem).toBeVisible({ timeout: 20000 });
+    await resultItem.click();
+
+    await expect(page.locator('h2', { hasText: /Paris/i }).first()).toBeVisible({ timeout: 20000 });
+
+    // By default, verbose debug logs must not clutter the console
+    expect(consoleMessages.some((m) => m.includes('weatherData:'))).toBe(false);
+    expect(consoleMessages.some((m) => m.includes('formatCurrentTime:'))).toBe(false);
+    expect(consoleMessages.some((m) => m.includes('useEffect triggered:'))).toBe(false);
+
+    // Enabling DEBUG=TRUE in the console activates verbose debug logging on subsequent renders/actions
+    await page.evaluate(() => {
+      window.eval('DEBUG=TRUE');
+    });
+    const langSelect = page.locator('header select').first();
+    await langSelect.selectOption('fr');
+
+    await expect.poll(() => consoleMessages.some((m) => m.includes('weatherData:'))).toBe(true);
+    await expect.poll(() => consoleMessages.some((m) => m.includes('formatCurrentTime:'))).toBe(true);
+  });
 });
 
 

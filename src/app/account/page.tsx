@@ -11,6 +11,7 @@ import AccountFavoritesAddComponent from '@/app/components/AccountFavoritesAddCo
 import AccountActionsComponent from '@/app/components/AccountActionsComponent';
 import { getLocalFavorites, saveLocalFavorites } from '@/lib/localWeatherDb';
 import { useLanguage } from '@/context/LanguageContext';
+import { debugLog } from '@/lib/logger';
 
 export default function Account() {
   const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
@@ -45,7 +46,7 @@ export default function Account() {
       // 2. Refresh from the backend in the background and update the cache.
       const data = await getFavorites();
       setFavorites(data);
-      saveLocalFavorites(data).catch((err) => console.debug('Failed saving favorites to IndexedDB:', err));
+      saveLocalFavorites(data).catch((err) => debugLog('Failed saving favorites to IndexedDB:', err));
     } catch (err) {
       console.error(t('error_fetching_favorites'), err);
     }

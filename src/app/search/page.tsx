@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { getCoordKey, addLocalFavorite } from '@/lib/localWeatherDb';
 import { PENDING_SEARCH_SELECTION_KEY } from '@/lib/constants';
+import { debugLog } from '@/lib/logger';
 
 /**
  * Dev comment:
@@ -100,7 +101,7 @@ export default function SearchPage() {
       // account list display it without waiting for their next server refresh.
       if (created && created._id) {
         addLocalFavorite(created as FavoriteLocation).catch((err) =>
-          console.debug('Failed caching new favorite in IndexedDB:', err),
+          debugLog('Failed caching new favorite in IndexedDB:', err),
         );
       }
     } catch (err) {

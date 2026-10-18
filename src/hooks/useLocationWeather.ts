@@ -11,6 +11,7 @@ import {
   getAdjustedWeatherForNow,
 } from '@/lib/localWeatherDb';
 import { useLanguage } from '@/context/LanguageContext';
+import { debugLog } from '@/lib/logger';
 
 interface UseLocationWeatherOptions {
   latitude: number;
@@ -81,7 +82,7 @@ export default function useLocationWeather({
         }
       })
       .catch((err) => {
-        console.debug('Error reading favorite from local DB:', err);
+        debugLog('Error reading favorite from local DB:', err);
       });
 
     // Background fetch for fresh live weather AND forecast in parallel
@@ -130,7 +131,7 @@ export default function useLocationWeather({
           rainFalls: rFalls,
           snowDepth: sDepth,
           forecast: fData || forecastDataRef.current,
-        }).catch((saveErr) => console.debug('Failed saving favorite to local DB:', saveErr));
+        }).catch((saveErr) => debugLog('Failed saving favorite to local DB:', saveErr));
       } catch (err) {
         console.error('Error fetching favorite data:', err);
       } finally {
@@ -172,7 +173,7 @@ export default function useLocationWeather({
           rainFalls: rainFallsData,
           snowDepth: snowDepthData,
           forecast: data,
-        }).catch((err) => console.debug('Failed updating forecast in local DB:', err));
+        }).catch((err) => debugLog('Failed updating forecast in local DB:', err));
       }
     } catch (err) {
       console.error('Error fetching favorite forecast:', err);

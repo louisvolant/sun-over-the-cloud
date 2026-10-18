@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
+import { debugLog } from '@/lib/logger';
 
 interface WeatherDisplayProps {
   weatherData: WeatherData | null;
@@ -47,7 +48,7 @@ export default function WeatherDisplay({
         hour12: false, // 24-hour format
       }).format(new Date(timestamp * 1000));
     } catch (error) {
-      console.debug('Error using IANA timezone:', error);
+      debugLog('Error using IANA timezone:', error);
       // Fallback to UTC without offset
       formattedTime = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-US', {
         hour: '2-digit',
@@ -56,7 +57,7 @@ export default function WeatherDisplay({
         hour12: false,
       }).format(new Date(timestamp * 1000));
     }
-    console.debug(`formatTime input: timestamp=${timestamp}, timezone=${timezone}, output=${formattedTime}`);
+    debugLog(`formatTime input: timestamp=${timestamp}, timezone=${timezone}, output=${formattedTime}`);
     // Use 'h' separator for French, ':' for others
     return language === 'fr' ? formattedTime.replace(':', 'h') : formattedTime;
   };
@@ -72,7 +73,7 @@ export default function WeatherDisplay({
         hour12: false, // 24-hour format
       }).format(new Date());
     } catch (error) {
-      console.debug('Error formatting current time with IANA timezone:', error);
+      debugLog('Error formatting current time with IANA timezone:', error);
       // Fallback to UTC
       formattedTime = new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : 'en-US', {
         hour: '2-digit',
@@ -81,17 +82,17 @@ export default function WeatherDisplay({
         hour12: false,
       }).format(new Date());
     }
-    console.debug(`formatCurrentTime: timezone=${timezone}, output=${formattedTime}`);
+    debugLog(`formatCurrentTime: timezone=${timezone}, output=${formattedTime}`);
     // Use 'h' separator for French, ':' for others
     return language === 'fr' ? formattedTime.replace(':', 'h') : formattedTime;
   };
 
   // Use the timezone from weatherData, fallback to UTC
   const timezone = weatherData.timezone || 'UTC';
-  console.debug('weatherData:', weatherData);
-  console.debug('weatherData.timezone:', weatherData.timezone);
-  console.debug('weatherData.timezone_offset:', weatherData.timezone_offset);
-  console.debug('language:', language);
+  debugLog('weatherData:', weatherData);
+  debugLog('weatherData.timezone:', weatherData.timezone);
+  debugLog('weatherData.timezone_offset:', weatherData.timezone_offset);
+  debugLog('language:', language);
 
   const iconCode = weatherData.weather[0]?.icon || '01d';
 

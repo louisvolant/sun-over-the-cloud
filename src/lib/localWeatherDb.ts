@@ -2,6 +2,7 @@
 'use client';
 
 import { WeatherData, ForecastData, FavoriteLocation, MinutelyCastSlot } from './types';
+import { debugLog } from './logger';
 
 export interface LocalCachedWeather {
   key: string;
@@ -53,16 +54,16 @@ function openDB(): Promise<IDBDatabase | null> {
       };
 
       request.onerror = (err) => {
-        console.debug('IndexedDB open error:', err);
+        debugLog('IndexedDB open error:', err);
         resolve(null);
       };
 
       request.onblocked = () => {
-        console.debug('IndexedDB open blocked');
+        debugLog('IndexedDB open blocked');
         resolve(null);
       };
     } catch (e) {
-      console.debug('IndexedDB unsupported or failed to open:', e);
+      debugLog('IndexedDB unsupported or failed to open:', e);
       resolve(null);
     }
   });

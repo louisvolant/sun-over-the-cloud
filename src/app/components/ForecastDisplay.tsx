@@ -9,6 +9,7 @@ import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/
 import { groupForecastByDay, formatForecastTime } from '@/lib/forecastGrouping';
 import { getSunEventsForItems, filterSunEventsToWindow, mergeTimeline } from '@/lib/sunTimes';
 import { ChevronDown, ChevronRight, Sunrise, Sunset } from 'lucide-react';
+import { debugLog } from '@/lib/logger';
 
 interface ForecastDisplayProps {
   weatherData: WeatherData | null;
@@ -24,18 +25,18 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
 
   const handleShowForecast = useCallback(async () => {
     if (!weatherData || isFetchingRef.current) {
-      console.debug('Skipping handleShowForecast: no weatherData or fetch in progress');
+      debugLog('Skipping handleShowForecast: no weatherData or fetch in progress');
       return;
     }
-    console.debug('Calling getForecast with lat:', weatherData.coord.lat, 'lon:', weatherData.coord.lon);
+    debugLog('Calling getForecast with lat:', weatherData.coord.lat, 'lon:', weatherData.coord.lon);
     isFetchingRef.current = true; // Set flag to prevent duplicate calls
     try {
       const data = await getForecast(weatherData.coord.lat.toString(), weatherData.coord.lon.toString());
-      console.debug('Forecast data received:', data);
+      debugLog('Forecast data received:', data);
       setForecastData(data);
       setError(null);
     } catch (error) {
-      console.debug('Error fetching forecast:', error);
+      debugLog('Error fetching forecast:', error);
       setError(t('failed_to_fetch_forecast'));
     } finally {
       isFetchingRef.current = false; // Reset flag after fetch completes
@@ -61,7 +62,7 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
   };
 
   useEffect(() => {
-    console.debug('useEffect triggered: weatherData=', !!weatherData, 'forecastData=', !!forecastData);
+    debugLog('useEffect triggered: weatherData=', !!weatherData, 'forecastData=', !!forecastData);
     if (weatherData && !forecastData && !isFetchingRef.current) {
       handleShowForecast();
     }
