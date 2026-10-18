@@ -1,8 +1,7 @@
 // Service Worker for Sun Over The Cloud PWA
-const CACHE_NAME = 'sun-over-the-cloud-v1';
+const CACHE_NAME = 'sun-over-the-cloud-v2';
 
 const PRECACHE_ASSETS = [
-  '/',
   '/manifest.json',
   '/icon.png',
   '/icon-192.png',
@@ -33,12 +32,19 @@ self.addEventListener('fetch', (event) => {
   // Never cache backend/auth API endpoints or live dynamic queries
   if (url.pathname.startsWith('/api/')) return;
 
-  // Navigations: network-first with cache fallback
-  if (req.mode === 'navigate') {
+  // Treat document navigations AND Next.js App Router RSC payloads as network-first
+  // with cache: 'no-store' so deployed UI updates are reflected immediately without
+  // needing to kill and restart the installed PWA.
+  const isRscRequest =
+    url.searchParams.has('_rsc') ||
+    req.headers.get('RSC') === '1' ||
+    req.headers.get('Next-Router-Prefetch') === '1';
+
+  if (req.mode === 'navigate' || isRscRequest) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-store' })
         .then((response) => {
-          if (response && response.status === 200) {
+          if (response && response.status === 200 && req.mode === 'navigate') {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           }
@@ -49,7 +55,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate
+  // Static assets (icons, hashed /_next/static/* chunks, fonts): stale-while-revalidate
   event.respondWith(
     caches.match(req).then((cached) => {
       const fetchPromise = fetch(req)

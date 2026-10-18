@@ -369,6 +369,17 @@ test.describe('UI Navigation and Interactions', () => {
     await expect.poll(() => consoleMessages.some((m) => m.includes('weatherData:'))).toBe(true);
     await expect.poll(() => consoleMessages.some((m) => m.includes('formatCurrentTime:'))).toBe(true);
   });
+
+  test('Service worker (/sw.js) uses network-first with no-store for navigations and Next.js RSC payloads', async ({
+    request,
+  }) => {
+    const res = await request.get('/sw.js');
+    expect(res.status()).toBe(200);
+    const swText = await res.text();
+    expect(swText).toContain("url.searchParams.has('_rsc')");
+    expect(swText).toContain("req.headers.get('RSC') === '1'");
+    expect(swText).toContain("fetch(req, { cache: 'no-store' })");
+  });
 });
 
 
