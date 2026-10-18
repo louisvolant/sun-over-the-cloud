@@ -35,52 +35,44 @@ export default function AccountActionsComponent({
       setSuccessMessage(t('password_changed_success'));
       setNewPassword('');
       setConfirmPassword('');
+      setShowPasswordForm(false);
       setTimeout(() => {
-        setShowPasswordForm(false);
         setSuccessMessage('');
-      }, 2000);
+      }, 3000);
     } catch (error) {
       console.error('Error changing password:', error);
       setPasswordError(t('failed_to_change_password'));
     }
   };
 
-  const togglePasswordForm = () => {
-    setShowPasswordForm(!showPasswordForm);
+  const openPasswordForm = () => {
+    setShowPasswordForm(true);
     setPasswordError('');
     setSuccessMessage('');
     setNewPassword('');
     setConfirmPassword('');
-    if (!showPasswordForm && formRef.current) {
-      setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
-    }
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
+  };
+
+  const closePasswordForm = () => {
+    setShowPasswordForm(false);
+    setPasswordError('');
+    setNewPassword('');
+    setConfirmPassword('');
   };
 
   return (
-    <>
-      <div className="flex flex-col items-center space-y-4 md:flex-row md:justify-center md:space-y-0 md:space-x-4">
-        <button
-          onClick={togglePasswordForm}
-          className={`w-full md:w-auto text-white font-medium py-2 px-6 rounded transition-colors ${
-            showPasswordForm
-              ? 'bg-blue-700 dark:bg-blue-500 ring-2 ring-blue-500'
-              : 'bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500'
-          }`}
-        >
-          {t('change_my_password_button')}
-        </button>
-        <button
-          onClick={onDeleteAccount}
-          className="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-6 rounded transition-colors"
-        >
-          {t('delete_my_account_button')}
-        </button>
-      </div>
+    <div className="flex flex-col items-center space-y-4">
+      {successMessage && (
+        <div className="w-full max-w-md p-3 bg-green-100 dark:bg-green-800 border border-green-300 dark:border-green-600 text-green-700 dark:text-green-200 rounded-md animate-fade-in text-sm text-center">
+          {successMessage}
+        </div>
+      )}
 
-      {showPasswordForm && (
+      {showPasswordForm ? (
         <div
           ref={formRef}
-          className="mt-8 bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 max-w-md mx-auto relative"
+          className="w-full bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 max-w-md mx-auto relative"
         >
           <h2 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-4">{t('change_password_title')}</h2>
           <form onSubmit={handleChangePassword}>
@@ -115,15 +107,10 @@ export default function AccountActionsComponent({
             {passwordError && (
               <p className="text-red-500 dark:text-red-400 text-sm mb-4">{passwordError}</p>
             )}
-            {successMessage && (
-              <div className="mb-4 p-3 bg-green-100 dark:bg-green-800 border border-green-300 dark:border-green-600 text-green-700 dark:text-green-200 rounded-md animate-fade-in text-sm">
-                {successMessage}
-              </div>
-            )}
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={togglePasswordForm}
+                onClick={closePasswordForm}
                 className="bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 font-medium py-2 px-4 rounded transition-colors text-sm"
               >
                 {t('cancel_button')}
@@ -137,7 +124,24 @@ export default function AccountActionsComponent({
             </div>
           </form>
         </div>
-      )}
-    </>
+      ) : null}
+
+      <div className="w-full flex flex-col items-center space-y-4 md:flex-row md:justify-center md:space-y-0 md:space-x-4">
+        {!showPasswordForm && (
+          <button
+            onClick={openPasswordForm}
+            className="w-full md:w-auto bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-medium py-2 px-6 rounded transition-colors"
+          >
+            {t('change_my_password_button')}
+          </button>
+        )}
+        <button
+          onClick={onDeleteAccount}
+          className="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-6 rounded transition-colors"
+        >
+          {t('delete_my_account_button')}
+        </button>
+      </div>
+    </div>
   );
 }

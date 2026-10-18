@@ -333,11 +333,28 @@ test.describe('Onboarding journey (mocked backend)', () => {
 
     // 4. The user changes the account password.
     await test.step('Changes the account password', async () => {
-      await page.getByRole('button', { name: 'Change My Password' }).click();
+      const changePwdButton = page.getByRole('button', { name: 'Change My Password' });
+      await expect(changePwdButton).toBeVisible();
+      await changePwdButton.click();
+
+      // The "Change My Password" button is replaced by the password form
+      await expect(changePwdButton).toHaveCount(0);
+      await expect(page.locator('#newPassword')).toBeVisible();
+
+      // Clicking Cancel closes the form and restores the button
+      await page.getByRole('button', { name: 'Cancel' }).click();
+      await expect(page.locator('#newPassword')).toHaveCount(0);
+      await expect(changePwdButton).toBeVisible();
+
+      // Open again and save the new password; the form closes and the button reappears
+      await changePwdButton.click();
+      await expect(changePwdButton).toHaveCount(0);
       await page.locator('#newPassword').fill(UPDATED_PASSWORD);
       await page.locator('#confirmPassword').fill(UPDATED_PASSWORD);
       await page.getByRole('button', { name: 'Save Password' }).click();
       await expect(page.getByText('Password changed successfully!')).toBeVisible();
+      await expect(page.locator('#newPassword')).toHaveCount(0);
+      await expect(changePwdButton).toBeVisible();
     });
 
     // 5. The user removes one favorite.
