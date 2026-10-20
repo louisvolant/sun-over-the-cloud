@@ -88,14 +88,18 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     await expect(rainBlock).toBeVisible({ timeout: 15000 });
     await expect(rainBlock).toContainText('Rain in the next hour');
 
-    // The 24-hour total coming from MET Norway must be explicitly labelled
-    // instead of showing a bare "2.3 mm" figure in the conditions grid.
+    // The 24-hour total and 1-hour total coming from MET Norway / Open-Meteo must be explicitly labelled.
     // Mobile carousel slides are also in the DOM but hidden on desktop.
     const rain24h = page.locator('[data-testid="rain-next-24h"]:visible').first();
     await expect(rain24h).toBeVisible();
-    await expect(rain24h).toContainText('Rain next 24 h');
+    await expect(rain24h).toContainText('Rain 24h');
     await expect(rain24h).toContainText('2.3 mm');
     await expect(rain24h).toHaveAttribute('title', 'Total rain expected over the next 24 hours');
+
+    const rain1h = page.locator('[data-testid="rain-next-1h"]:visible').first();
+    await expect(rain1h).toBeVisible();
+    await expect(rain1h).toContainText('Rain 1h');
+    await expect(rain1h).toContainText('2.3 mm');
 
     // The section header sums the 4 displayed quarter-hour slots.
     const nextHourTotal = rainBlock.getByTestId('next-hour-rain-total');
@@ -118,7 +122,8 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     const langSelect = page.locator('header select').first();
     await langSelect.selectOption('fr');
     await expect(rainBlock).toContainText("Pluie dans l'heure");
-    await expect(rain24h).toContainText('Pluie sur 24 h');
+    await expect(rain1h).toContainText('Pluie 1h');
+    await expect(rain24h).toContainText('Pluie 24h');
     await expect(rain24h).toHaveAttribute('title', 'Cumul de pluie prévu sur les prochaines 24 heures');
     await expect(slots.nth(0)).toContainText(/h/);
     await expect(slots.nth(0)).toHaveAttribute('title', /^\d{2}h\d{2} – \d{2}h\d{2} · \d+\.\d mm$/);
@@ -126,7 +131,8 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     // Switch language to Spanish
     await langSelect.selectOption('es');
     await expect(rainBlock).toContainText('Lluvia en la próxima hora');
-    await expect(rain24h).toContainText('Lluvia en 24 h');
+    await expect(rain1h).toContainText('Lluvia 1h');
+    await expect(rain24h).toContainText('Lluvia 24h');
   });
 
   test('renders the 4 next-hour slots on mobile carousel when rain is expected', async ({ page }) => {
@@ -168,5 +174,87 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
 
     await expect(page.getByRole('heading', { name: /Paris/ }).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('next-hour-precipitation')).toHaveCount(0);
+  });
+
+  test('keeps desktop top card readable for long location names and nowrap elements', async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    const quarterStart = Math.floor(now / 900) * 900;
+    const rainySlots: MinutelyTestSlot[] = [
+      { dt: quarterStart, precipitation: 0.5, rain: 0.5, snowfall: 0 },
+      { dt: quarterStart + 900, precipitation: 0.5, rain: 0.5, snowfall: 0 },
+      { dt: quarterStart + 1800, precipitation: 0, rain: 0, snowfall: 0 },
+      { dt: quarterStart + 2700, precipitation: 0, rain: 0, snowfall: 0 },
+    ];
+
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', '1'));
+    await page.route('**/sw.js', (route) => route.abort());
+    await page.route('**/api/**', async (route) => {
+      const { pathname } = new URL(route.request().url());
+      const send = (body: unknown) =>
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+      if (pathname === '/api/check-auth') return send({ isAuthenticated: true });
+      if (pathname === '/api/favorites') {
+        return send([
+          {
+            _id: 'fav-saint-maur',
+            user_id: 'u1',
+            location_name: 'Saint-Maur-des-Fossés',
+            latitude: 48.8028,
+            longitude: 2.4975,
+            country_code: 'FR',
+            order: 0,
+          },
+        ]);
+      }
+      if (pathname === '/api/cached-favorites') return send([]);
+      if (pathname === '/api/onecall') {
+        return send({
+          current: {
+            temp: 8.9,
+            feels_like: 5.5,
+            humidity: 86.2,
+            pressure: 1012,
+            weather: [{ description: 'ciel dégagé', icon: '01d' }],
+            wind_speed: 3.7,
+            wind_deg: 346,
+            clouds: 20,
+            visibility: 10000,
+            sunrise: now - 3600,
+            sunset: now + 3600,
+          },
+          daily: [{ rain: 2.3, snow: 0 }],
+          minutely_15: rainySlots,
+          timezone: 'Europe/Paris',
+          timezone_offset: 3600,
+        });
+      }
+      if (pathname === '/api/forecast') {
+        return send({ list: [], timezone: 'Europe/Paris' });
+      }
+    });
+
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto('/');
+
+    const favButton = page.getByRole('button', { name: /Saint-Maur-des-Fossés/ }).first();
+    await expect(favButton).toBeVisible({ timeout: 15000 });
+    await favButton.click();
+
+    const heading = page.getByRole('heading', { name: /Saint-Maur-des-Fossés/ }).first();
+    await expect(heading).toBeVisible();
+
+    // Verify feels like element does not wrap
+    const feelsLikeSpan = page.locator('span:text-matches("ressenti|feels like|sensación")').first();
+    await expect(feelsLikeSpan).toHaveClass(/whitespace-nowrap/);
+
+    // Verify rain items
+    const rain24h = page.locator('[data-testid="rain-next-24h"]:visible').first();
+    await expect(rain24h).toBeVisible();
+    await expect(rain24h.locator('span').first()).toHaveClass(/whitespace-nowrap/);
+
+    const rain1h = page.locator('[data-testid="rain-next-1h"]:visible').first();
+    await expect(rain1h).toBeVisible();
+    await expect(rain1h.locator('span').first()).toHaveClass(/whitespace-nowrap/);
   });
 });

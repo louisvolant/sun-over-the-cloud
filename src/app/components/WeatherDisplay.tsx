@@ -114,17 +114,17 @@ export default function WeatherDisplay({
 
   return (
     <div className={`p-4 md:p-5 rounded-xl mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 text-gray-900'} shadow-sm transition-all`}>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
         {/* Left Column: Primary Weather (max 3 lines) */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 md:min-w-[260px]">
           {/* Line 1: Location & Time and Favorite Action Button */}
           <div className="flex items-center justify-between gap-2 mb-1">
-            <h2 className="text-lg sm:text-xl font-semibold flex items-center truncate min-w-0">
+            <h2 className="text-lg sm:text-xl font-semibold flex items-center min-w-0">
               {weatherData.country && (
                 <span className={`fi fi-${weatherData.country.toLowerCase()} mr-2 rounded shrink-0`}></span>
               )}
-              <span className="truncate">{weatherData.name}</span>
-              <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0">({formatCurrentTime(timezone)})</span>
+              <span className="truncate" title={weatherData.name}>{weatherData.name}</span>
+              <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0 whitespace-nowrap">({formatCurrentTime(timezone)})</span>
             </h2>
 
             {onToggleFavorite &&
@@ -179,11 +179,11 @@ export default function WeatherDisplay({
                 } ${weatherIconAnimationMap[iconCode] || ''}`}
               />
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
               <span className="text-2xl sm:text-3xl font-bold tracking-tight">
                 {weatherData.main.temp.toFixed(1)}{t('celsius_short')}
               </span>
-              <span className="text-xs sm:text-sm opacity-80">
+              <span className="text-xs sm:text-sm opacity-80 whitespace-nowrap">
                 ({weatherData.main.feels_like.toFixed(1)}{t('celsius_short')} {t('feels_like')})
               </span>
             </div>
@@ -208,40 +208,53 @@ export default function WeatherDisplay({
         </div>
 
         {/* Right Column: Detailed Conditions (desktop side-column, mobile accordion) */}
-        <div className={`${isExpanded ? 'block' : 'hidden md:block'} border-t md:border-t-0 md:border-l border-gray-200/80 dark:border-gray-700/80 md:pl-6 pt-3 md:pt-0 shrink-0`}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+        <div className={`${isExpanded ? 'block' : 'hidden md:block'} border-t md:border-t-0 md:border-l border-gray-200/80 dark:border-gray-700/80 md:pl-6 pt-3 md:pt-0`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
             {weatherData.wind.speed > 0 && (
-              <div className="flex items-center gap-1.5" title={t('wind_speed_unit')}>
+              <div className="flex items-center gap-1.5 whitespace-nowrap" title={t('wind_speed_unit')}>
                 <Wind className="w-4 h-4 text-blue-500 shrink-0" />
                 <span>{weatherData.wind.speed} {t('wind_speed_unit')} ({weatherData.wind.deg}°)</span>
               </div>
             )}
             {weatherData.main.humidity && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <Droplets className="w-4 h-4 text-cyan-500 shrink-0" />
                 <span>{weatherData.main.humidity}{t('humidity_unit')}</span>
               </div>
             )}
             {weatherData.clouds.all > 0 && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <Cloud className="w-4 h-4 text-gray-400 shrink-0" />
                 <span>{weatherData.clouds.all}{t('clouds_unit')}</span>
               </div>
             )}
             {weatherData.visibility && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <Eye className="w-4 h-4 text-slate-400 shrink-0" />
                 <span>{(weatherData.visibility / 1000).toFixed(0)} {t('visibility_unit')}</span>
               </div>
             )}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <Sunrise className="w-4 h-4 text-amber-500 shrink-0" />
               <span>{formatTime(weatherData.sys.sunrise, timezone)}</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <Sunset className="w-4 h-4 text-indigo-400 shrink-0" />
               <span>{formatTime(weatherData.sys.sunset, timezone)}</span>
             </div>
+            {hasUpcomingRain && (
+              <div
+                className="flex items-center gap-1.5"
+                data-testid="rain-next-1h"
+                title={t('rain_next_hour_total_hint')}
+              >
+                <CloudRain className="w-4 h-4 text-blue-500 shrink-0" />
+                <span className="whitespace-nowrap">
+                  {t('rain_next_1h_label')}{' '}
+                  <span className="font-semibold">{nextHourTotal.toFixed(1)} {t('rain_unit')}</span>
+                </span>
+              </div>
+            )}
             {rainFallsData !== null && rainFallsData >= 0.05 && (
               <div
                 className="flex items-center gap-1.5"
@@ -249,7 +262,7 @@ export default function WeatherDisplay({
                 title={t('rain_next_24h_hint')}
               >
                 <CloudRain className="w-4 h-4 text-blue-500 shrink-0" />
-                <span>
+                <span className="whitespace-nowrap">
                   {t('rain_next_24h_label')}{' '}
                   <span className="font-semibold">{rainFallsData.toFixed(1)} {t('rain_unit')}</span>
                 </span>
@@ -262,7 +275,7 @@ export default function WeatherDisplay({
                 title={t('snow_next_24h_hint')}
               >
                 <Snowflake className="w-4 h-4 text-sky-400 shrink-0" />
-                <span>
+                <span className="whitespace-nowrap">
                   {t('snow_next_24h_label')}{' '}
                   <span className="font-semibold">{snowDepthData.toFixed(1)} {t('snow_unit')}</span>
                 </span>

@@ -202,9 +202,10 @@
   "terms_liability_desc": "En la máxima medida permitida por la legislación aplicable, Sun Over The Cloud y sus creadores no serán responsables de daños indirectos, incidentales o consecuentes derivados del uso o la imposibilidad de uso del servicio.",
   "rain_next_hour_title": "Lluvia en la próxima hora",
   "rain_next_hour_total_hint": "Precipitación total prevista en la próxima hora",
-  "rain_next_24h_label": "Lluvia en 24 h",
+  "rain_next_1h_label": "Lluvia 1h",
+  "rain_next_24h_label": "Lluvia 24h",
   "rain_next_24h_hint": "Lluvia total prevista para las próximas 24 horas",
-  "snow_next_24h_label": "Nieve en 24 h",
+  "snow_next_24h_label": "Nieve 24h",
   "snow_next_24h_hint": "Nieve total prevista para las próximas 24 horas",
   "rain_slot_time_range": "{start} – {end}"
 }
