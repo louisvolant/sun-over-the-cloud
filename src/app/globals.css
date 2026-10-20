@@ -40,6 +40,15 @@
   }
 }
 
+/* Wire the next/font Geist variables (set on <body>) into Tailwind's font
+   tokens. Without this the fonts were downloaded and preloaded but never
+   used, which also triggered Firefox's "preloaded resource was not used"
+   console warnings. */
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
 /* 3. Base Styles & Variables */
 :root {
   --background: #ffffff;
@@ -93,7 +102,9 @@ body {
   overflow-x: clip;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Unlayered body rules outrank Tailwind's layered utilities, so reference
+     the next/font variable directly instead of a hardcoded Arial stack. */
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   margin: 0;
   overscroll-behavior-x: none;
 }

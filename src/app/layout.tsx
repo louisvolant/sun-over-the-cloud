@@ -53,9 +53,13 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// The mono family is only kept as a CSS variable for future code snippets; it
+// is not used by the UI, so preloading it only cost a request and produced a
+// Firefox warning about an unused preloaded font.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export default function RootLayout({
@@ -67,7 +71,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <ThemeProvider>
           <AuthProvider>
             <LanguageProvider>
