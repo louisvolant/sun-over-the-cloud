@@ -9,6 +9,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import PwaZoomController from './components/PwaZoomController';
 import ServiceWorkerRegister from './components/ServiceWorkerRegister';
+import ChunkLoadGuard from './components/ChunkLoadGuard';
 import "./globals.css";
 import Link from 'next/link';
 import Image from 'next/image';
@@ -70,6 +71,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <ChunkLoadGuard />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <ThemeProvider>
