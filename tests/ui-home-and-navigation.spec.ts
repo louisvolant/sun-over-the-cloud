@@ -377,8 +377,8 @@ test.describe('UI Navigation and Interactions', () => {
     expect(res.status()).toBe(200);
     const swText = await res.text();
     expect(swText).toContain("url.searchParams.has('_rsc')");
-    expect(swText).toContain("req.headers.get('RSC') === '1'");
-    expect(swText).toContain("fetch(req, { cache: 'no-store' })");
+    expect(swText).toContain("request.headers.get('RSC') === '1'");
+    expect(swText).toContain("fetch(request, { cache: 'no-store' })");
   });
 });
 

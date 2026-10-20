@@ -12,9 +12,14 @@ export default function ServiceWorkerRegister() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
     if (process.env.NODE_ENV === "production") {
+      // `clients.claim()` also fires `controllerchange` on the very first
+      // install. Reloading then would interrupt the visitor's first session
+      // for no reason (and used to break long end-to-end journeys); only an
+      // actual update replacing an existing controller warrants a reload.
+      const hadController = Boolean(navigator.serviceWorker.controller);
       let refreshing = false;
       const handleControllerChange = () => {
-        if (!refreshing) {
+        if (hadController && !refreshing) {
           refreshing = true;
           window.location.reload();
         }
