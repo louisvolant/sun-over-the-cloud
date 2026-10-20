@@ -107,6 +107,10 @@ export default function WeatherDisplay({
     nextFourMinutelySlots.some(
       (slot) => (slot.precipitation ?? 0) > 0 || (slot.rain ?? 0) > 0 || (slot.snowfall ?? 0) > 0
     );
+  const nextHourTotal = nextFourMinutelySlots.reduce(
+    (total, slot) => total + (slot.precipitation ?? slot.rain ?? 0),
+    0
+  );
 
   return (
     <div className={`p-4 md:p-5 rounded-xl mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 text-gray-900'} shadow-sm transition-all`}>
@@ -238,16 +242,30 @@ export default function WeatherDisplay({
               <Sunset className="w-4 h-4 text-indigo-400 shrink-0" />
               <span>{formatTime(weatherData.sys.sunset, timezone)}</span>
             </div>
-            {rainFallsData !== null && rainFallsData > 0 && (
-              <div className="flex items-center gap-1.5">
+            {rainFallsData !== null && rainFallsData >= 0.05 && (
+              <div
+                className="flex items-center gap-1.5"
+                data-testid="rain-next-24h"
+                title={t('rain_next_24h_hint')}
+              >
                 <CloudRain className="w-4 h-4 text-blue-500 shrink-0" />
-                <span>{rainFallsData.toFixed(1)} {t('rain_unit')}</span>
+                <span>
+                  {t('rain_next_24h_label')}{' '}
+                  <span className="font-semibold">{rainFallsData.toFixed(1)} {t('rain_unit')}</span>
+                </span>
               </div>
             )}
-            {snowDepthData !== null && snowDepthData > 0 && (
-              <div className="flex items-center gap-1.5">
+            {snowDepthData !== null && snowDepthData >= 0.05 && (
+              <div
+                className="flex items-center gap-1.5"
+                data-testid="snow-next-24h"
+                title={t('snow_next_24h_hint')}
+              >
                 <Snowflake className="w-4 h-4 text-sky-400 shrink-0" />
-                <span>{snowDepthData.toFixed(1)} {t('snow_unit')}</span>
+                <span>
+                  {t('snow_next_24h_label')}{' '}
+                  <span className="font-semibold">{snowDepthData.toFixed(1)} {t('snow_unit')}</span>
+                </span>
               </div>
             )}
           </div>
@@ -263,11 +281,25 @@ export default function WeatherDisplay({
           <div className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
             <CloudRain className="w-4 h-4 text-blue-500 shrink-0" />
             <span>{t('rain_next_hour_title')}</span>
+            <span className="opacity-60" aria-hidden="true">·</span>
+            <span
+              className="font-semibold"
+              data-testid="next-hour-rain-total"
+              title={t('rain_next_hour_total_hint')}
+            >
+              {nextHourTotal.toFixed(1)} {t('rain_unit')}
+            </span>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {nextFourMinutelySlots.map((slot) => {
               const amount = slot.precipitation ?? slot.rain ?? 0;
               const isRainingSlot = amount > 0;
+              const slotStart = formatTime(slot.dt, timezone);
+              const slotEnd = formatTime(slot.dt + 900, timezone);
+              const slotRange = t('rain_slot_time_range', {
+                start: slotStart,
+                end: slotEnd,
+              });
               const intensityPct = isRainingSlot
                 ? Math.min(100, Math.max(20, Math.round((amount / 2.0) * 100)))
                 : 0;
@@ -276,6 +308,7 @@ export default function WeatherDisplay({
                 <div
                   key={slot.dt}
                   data-testid="next-hour-rain-slot"
+                  title={`${slotRange} · ${amount.toFixed(1)} ${t('rain_unit')}`}
                   className={`flex flex-col items-center rounded-lg px-2 py-1.5 border text-xs transition-colors ${
                     isRainingSlot
                       ? darkMode
@@ -286,7 +319,7 @@ export default function WeatherDisplay({
                         : 'bg-white/70 border-gray-200/70 text-gray-500'
                   }`}
                 >
-                  <span className="font-medium">{formatTime(slot.dt, timezone)}</span>
+                  <span className="font-medium">{slotStart}</span>
                   <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden my-1">
                     {isRainingSlot && (
                       <div

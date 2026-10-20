@@ -200,5 +200,11 @@
   "terms_account_desc": "Usted es responsable de preservar la confidencialidad de sus credenciales de acceso. Nos reservamos el derecho de suspender o cancelar cuentas que infrinjan estos términos o incurran en conductas abusivas.",
   "terms_liability_title": "4. Limitación de responsabilidad",
   "terms_liability_desc": "En la máxima medida permitida por la legislación aplicable, Sun Over The Cloud y sus creadores no serán responsables de daños indirectos, incidentales o consecuentes derivados del uso o la imposibilidad de uso del servicio.",
-  "rain_next_hour_title": "Lluvia en la próxima hora"
+  "rain_next_hour_title": "Lluvia en la próxima hora",
+  "rain_next_hour_total_hint": "Precipitación total prevista en la próxima hora",
+  "rain_next_24h_label": "Lluvia en 24 h",
+  "rain_next_24h_hint": "Lluvia total prevista para las próximas 24 horas",
+  "snow_next_24h_label": "Nieve en 24 h",
+  "snow_next_24h_hint": "Nieve total prevista para las próximas 24 horas",
+  "rain_slot_time_range": "{start} – {end}"
 }

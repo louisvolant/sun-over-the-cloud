@@ -88,6 +88,20 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     await expect(rainBlock).toBeVisible({ timeout: 15000 });
     await expect(rainBlock).toContainText('Rain in the next hour');
 
+    // The 24-hour total coming from MET Norway must be explicitly labelled
+    // instead of showing a bare "2.3 mm" figure in the conditions grid.
+    // Mobile carousel slides are also in the DOM but hidden on desktop.
+    const rain24h = page.locator('[data-testid="rain-next-24h"]:visible').first();
+    await expect(rain24h).toBeVisible();
+    await expect(rain24h).toContainText('Rain next 24 h');
+    await expect(rain24h).toContainText('2.3 mm');
+    await expect(rain24h).toHaveAttribute('title', 'Total rain expected over the next 24 hours');
+
+    // The section header sums the 4 displayed quarter-hour slots.
+    const nextHourTotal = rainBlock.getByTestId('next-hour-rain-total');
+    await expect(nextHourTotal).toContainText('2.3 mm');
+    await expect(nextHourTotal).toHaveAttribute('title', 'Total precipitation expected in the next hour');
+
     const slots = rainBlock.getByTestId('next-hour-rain-slot');
     await expect(slots).toHaveCount(4);
     await expect(slots.nth(0)).toContainText('0.4 mm');
@@ -95,15 +109,24 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     await expect(slots.nth(2)).toContainText('0.0 mm');
     await expect(slots.nth(3)).toContainText('0.7 mm');
 
+    // Each slot exposes its exact quarter-hour window.
+    for (let i = 0; i < 4; i += 1) {
+      await expect(slots.nth(i)).toHaveAttribute('title', /^\d{2}:\d{2} – \d{2}:\d{2} · \d+\.\d mm$/);
+    }
+
     // Switch language to French and verify title + 'h' time format
     const langSelect = page.locator('header select').first();
     await langSelect.selectOption('fr');
     await expect(rainBlock).toContainText("Pluie dans l'heure");
+    await expect(rain24h).toContainText('Pluie sur 24 h');
+    await expect(rain24h).toHaveAttribute('title', 'Cumul de pluie prévu sur les prochaines 24 heures');
     await expect(slots.nth(0)).toContainText(/h/);
+    await expect(slots.nth(0)).toHaveAttribute('title', /^\d{2}h\d{2} – \d{2}h\d{2} · \d+\.\d mm$/);
 
     // Switch language to Spanish
     await langSelect.selectOption('es');
     await expect(rainBlock).toContainText('Lluvia en la próxima hora');
+    await expect(rain24h).toContainText('Lluvia en 24 h');
   });
 
   test('renders the 4 next-hour slots on mobile carousel when rain is expected', async ({ page }) => {
