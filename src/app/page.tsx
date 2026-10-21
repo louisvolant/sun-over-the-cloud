@@ -929,16 +929,6 @@ export default function Home() {
         </div>
 
         <div ref={weatherDisplayContainerRef} className="relative">
-          {weatherData !== null && (
-            <button
-              type="button"
-              onClick={handleClearLastLocation}
-              aria-label="Dismiss"
-              className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
           <WeatherDisplay
             weatherData={weatherData}
             rainFallsData={rainFallsData}
@@ -946,6 +936,7 @@ export default function Home() {
             isFavorite={!!currentMatchingFavorite}
             onToggleFavorite={handleToggleSearchFavorite}
             isFavoriteLoading={isFavoriteActionLoading}
+            onDismiss={handleClearLastLocation}
           />
 
           {weatherData && (

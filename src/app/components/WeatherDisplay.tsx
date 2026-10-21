@@ -5,7 +5,7 @@ import { WeatherData } from '@/lib/types';
 import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/context/LanguageContext';
 import {
-  Sun, Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake, ChevronDown, ChevronUp, Star, Loader2
+  Sun, Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake, ChevronDown, ChevronUp, Star, Loader2, X
 } from 'lucide-react';
 import { useState } from 'react';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
@@ -20,6 +20,8 @@ interface WeatherDisplayProps {
   isFavoriteLoading?: boolean;
   /** Render the favorite action as a compact icon-only star (used on mobile carousel slides). */
   favoriteIconOnly?: boolean;
+  /** Optional dismiss action rendered on the location line, next to the favorite action. */
+  onDismiss?: () => void;
 }
 
 export default function WeatherDisplay({
@@ -30,6 +32,7 @@ export default function WeatherDisplay({
   onToggleFavorite,
   isFavoriteLoading = false,
   favoriteIconOnly = false,
+  onDismiss,
 }: WeatherDisplayProps) {
   const { darkMode } = useTheme();
   const { t, tWeather, language } = useLanguage();
@@ -114,19 +117,23 @@ export default function WeatherDisplay({
 
   return (
     <div className={`p-4 md:p-5 rounded-xl mb-4 border ${darkMode ? 'bg-gray-800/90 border-gray-700 text-gray-100' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 text-gray-900'} shadow-sm transition-all`}>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
-        {/* Left Column: Primary Weather (max 3 lines) */}
-        <div className="flex-1 min-w-0 md:min-w-[260px]">
-          {/* Line 1: Location & Time and Favorite Action Button */}
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <h2 className="text-lg sm:text-xl font-semibold flex items-center min-w-0">
-              {weatherData.country && (
-                <span className={`fi fi-${weatherData.country.toLowerCase()} mr-2 rounded shrink-0`}></span>
-              )}
-              <span className="truncate" title={weatherData.name}>{weatherData.name}</span>
-              <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0 whitespace-nowrap">({formatCurrentTime(timezone)})</span>
-            </h2>
+      {/* Line 1: Location & Time + Favorite/Dismiss actions.
+          This row spans the full card width on purpose: it previously lived in
+          the left column, where the desktop details column (md+) squeezed it
+          down to ~260px and truncated the location name even on wide screens.
+          Keeping the actions here also prevents the absolute dismiss button
+          from overlapping the "Add to favorites" button on narrow viewports. */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <h2 className="text-lg sm:text-xl font-semibold flex items-center min-w-0">
+          {weatherData.country && (
+            <span className={`fi fi-${weatherData.country.toLowerCase()} mr-2 rounded shrink-0`}></span>
+          )}
+          <span className="truncate" title={weatherData.name}>{weatherData.name}</span>
+          <span className="text-xs sm:text-sm ml-2 font-normal opacity-75 shrink-0 whitespace-nowrap">({formatCurrentTime(timezone)})</span>
+        </h2>
 
+        {(onToggleFavorite || onDismiss) && (
+          <div className="flex items-center gap-1 shrink-0">
             {onToggleFavorite &&
               (favoriteIconOnly ? (
                 // Icon-only star, pushed flush to the right of the location line.
@@ -153,23 +160,40 @@ export default function WeatherDisplay({
                   type="button"
                   onClick={onToggleFavorite}
                   disabled={isFavoriteLoading}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs sm:text-sm font-medium rounded-lg border transition-all shrink-0 ${
+                  className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-xs sm:text-sm font-medium rounded-lg border transition-all shrink-0 ${
                     isFavorite
                       ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60'
                       : 'bg-white dark:bg-gray-700 border-blue-400 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-gray-600'
                   } ${isFavoriteLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                   title={isFavorite ? t('remove_button') : t('add_button')}
+                  aria-label={isFavorite ? t('in_favorites') : t('add_to_favorites')}
                 >
                   {isFavoriteLoading ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400 text-amber-500' : 'text-blue-500'}`} />
                   )}
-                  <span>{isFavorite ? t('in_favorites') : t('add_to_favorites')}</span>
+                  {/* Label hidden on very narrow screens so the location name keeps room. */}
+                  <span className="hidden sm:inline">{isFavorite ? t('in_favorites') : t('add_to_favorites')}</span>
                 </button>
               ))}
+            {onDismiss && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                aria-label="Dismiss"
+                className="shrink-0 p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
+        )}
+      </div>
 
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
+        {/* Left Column: Primary Weather (max 3 lines) */}
+        <div className="flex-1 min-w-0 md:min-w-[260px]">
           {/* Line 2: Weather Icon & Temperature */}
           <div className="flex items-center gap-3 my-1">
             <div className={`p-2 rounded-xl flex items-center justify-center shadow-xs shrink-0 ${darkMode ? 'bg-gray-900/80 border border-gray-700' : 'bg-white border border-blue-200/70'}`}>
