@@ -156,9 +156,9 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
 - Password hashing uses PBKDF2-HMAC-SHA256 through the Web Crypto API (`src/lib/passwordUtils.ts`), stored as `pbkdf2$sha256$<iterations>$<salt>$<hash>`. The previous WASM-based `hash-wasm` Argon2id could not run on workerd, which refuses runtime WebAssembly compilation ("Wasm code generation disallowed by embedder"), so every registration failed with a 500.
 - **Native `fetch` everywhere on the server**: all outbound HTTP from API routes and server services must use the native `fetch` — never axios or Node-http-based clients such as node-mailjet. The Node.js http stack can hang on Cloudflare Workers until the runtime cancels the request ("Worker's code had hung"). This now covers the MET Norway service (`metNorwayService.ts`), the Open-Meteo day/month summary service (`oneCallService.ts`, used by `/api/onecallmonthsummary` and the cron scheduler), the Open-Meteo geocoding cache lookup in `/api/search`, and Mailjet password-reset emails (native `fetch` to `api.mailjet.com` with Basic auth, best-effort so a Mailjet outage never leaks account existence). Slow upstreams are bounded with `AbortSignal.timeout`.
 - **Data storage is Cloudflare D1 + KV — no TCP database driver**:
-  - **D1 (SQLite, binding `DB`)** holds the durable, relational data: `users`, `user_favorites` and `password_reset_tokens`. The schema lives in `migrations/` (applied with `npm run db:migrate:local` / `db:migrate:remote`) and every query is a prepared statement executed at the edge (`src/lib/data.ts`). There is no connection to open, pool, or time out, which removes the whole class of cold-start handshake failures and "Worker's code had hung" (error 1101) that the former MongoDB TCP driver suffered from on workerd.
+  - **D1 (SQLite, binding `DB`)** holds the durable, relational data: `users`, `user_favorites` and `password_reset_tokens`. The schema lives in `migrations/` (applied with `npm run db:migrate:local` / `db:migrate:remote`) and every query is a prepared statement executed at the edge (`src/lib/data.ts`). There is no connection to open, pool, or time out, which removes the whole class of cold-start handshake failures and "Worker's code had hung" (error 1101) typical of TCP-based database drivers on workerd.
   - **KV (binding `CACHE`)** holds the disposable caches: geocoding results and Open-Meteo day summaries, stored as JSON with a 30-day `expirationTtl` (`src/lib/cache.ts`). They regenerate on demand and are safe to lose.
-  - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. The legacy connect-mongo session fallback was dropped.
+  - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. Sessions are stateless: they live in a signed cookie (`src/lib/session.ts`), so there is no server-side session store.
 
 ### Data storage & migrations
 
@@ -168,15 +168,6 @@ The bindings are declared in `wrangler.toml` (`DB` for D1, `CACHE` for KV). Appl
 npm run db:migrate:local    # local D1 emulation used by `next dev`
 npm run db:migrate:remote   # production D1
 ```
-
-**One-time data migration from MongoDB.** With the old `MONGODB_ATLAS_*` variables still present in `.env.local`, run:
-
-```bash
-npm run db:export
-npx wrangler d1 execute sunoverthecloud-d1 --remote --file=scripts/seed-data.sql
-```
-
-`npm run db:export` reads the `Users`, `UserFavorites` and `UserPasswordResetTokens` collections and writes `scripts/seed-data.sql` (git-ignored, it contains user data). The KV caches regenerate on demand and are not exported.
 
 ### Environment Variables
 
