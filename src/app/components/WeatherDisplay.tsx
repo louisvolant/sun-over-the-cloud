@@ -5,9 +5,9 @@ import { WeatherData } from '@/lib/types';
 import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/context/LanguageContext';
 import {
-  Sun, Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake, ChevronDown, ChevronUp, Star, Loader2, X
+  Cloud, Droplets, Wind, Eye, Sunrise, Sunset, CloudRain, Snowflake, ChevronDown, ChevronUp, Star, Loader2, X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
 import { debugLog } from '@/lib/logger';
 
@@ -37,6 +37,16 @@ export default function WeatherDisplay({
   const { darkMode } = useTheme();
   const { t, tWeather, language } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
+  // Current time, kept out of the render phase (React purity rule) and
+  // refreshed every minute so the next-hour slots stay accurate.
+  const [nowSec, setNowSec] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateNow = () => setNowSec(Math.floor(Date.now() / 1000));
+    updateNow();
+    const timer = setInterval(updateNow, 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (!weatherData) return null;
 
@@ -99,12 +109,13 @@ export default function WeatherDisplay({
 
   const iconCode = weatherData.weather[0]?.icon || '01d';
 
-  // Select the next 4 upcoming 15-minute slots whose 15-min window has not ended yet
-  const nowSec = Math.floor(Date.now() / 1000);
+  // Select the next 4 upcoming 15-minute slots whose 15-min window has not ended yet.
+  // Before the first client effect, `nowSec` is null and no slot is shown.
   const rawMinutelySlots = Array.isArray(weatherData.minutely_15) ? weatherData.minutely_15 : [];
-  const nextFourMinutelySlots = rawMinutelySlots
-    .filter((slot) => slot.dt + 900 > nowSec)
-    .slice(0, 4);
+  const nextFourMinutelySlots =
+    nowSec === null
+      ? []
+      : rawMinutelySlots.filter((slot) => slot.dt + 900 > nowSec).slice(0, 4);
   const hasUpcomingRain =
     nextFourMinutelySlots.length > 0 &&
     nextFourMinutelySlots.some(
