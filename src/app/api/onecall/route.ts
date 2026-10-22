@@ -14,8 +14,11 @@ export async function GET(request: NextRequest) {
   try {
     const data = await getCurrentWeather(parseFloat(lat), parseFloat(lon));
     return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('API Error /api/onecall:', error.message);
+  } catch (error: unknown) {
+    console.error(
+      'API Error /api/onecall:',
+      error instanceof Error ? error.message : String(error)
+    );
     return NextResponse.json({ error: 'Failed to fetch weather data from MET Norway' }, { status: 500 });
   }
 }

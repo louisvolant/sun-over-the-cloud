@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Registration failed:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

@@ -14,8 +14,11 @@ export async function GET(request: NextRequest) {
   try {
     const data = await getForecast(parseFloat(lat), parseFloat(lon));
     return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('API Error /api/forecast:', error.message);
+  } catch (error: unknown) {
+    console.error(
+      'API Error /api/forecast:',
+      error instanceof Error ? error.message : String(error)
+    );
     return NextResponse.json({ error: 'Failed to fetch forecast data' }, { status: 500 });
   }
 }

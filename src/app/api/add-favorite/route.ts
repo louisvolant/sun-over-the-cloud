@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(newFavorite, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error adding favorite:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

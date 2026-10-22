@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     await reorderFavorites(user.id, orderedFavoriteIds);
 
     return NextResponse.json({ message: 'Favorites reordered successfully' });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error reordering favorites:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

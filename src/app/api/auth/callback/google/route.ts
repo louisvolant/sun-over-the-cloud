@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.redirect(frontendUrl);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Google OAuth error:', error);
     return NextResponse.redirect(`${frontendUrl}?error=oauth_failed`);
   }

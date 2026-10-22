@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     await deleteResetToken(tokenDoc._id);
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in password reset:', err);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }

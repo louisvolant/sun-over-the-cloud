@@ -34,8 +34,11 @@ export async function GET() {
 
     lastGood = { data: formattedFavorites, at: Date.now() };
     return NextResponse.json(formattedFavorites);
-  } catch (err: any) {
-    console.warn('Error fetching cached favorites (serving last known list):', err?.message || err);
+  } catch (err: unknown) {
+    console.warn(
+      'Error fetching cached favorites (serving last known list):',
+      err instanceof Error ? err.message : String(err)
+    );
     // Never drop the home page's popular locations when a previous call
     // succeeded recently; fall back to an empty list otherwise.
     return NextResponse.json(lastGood?.data ?? []);

@@ -18,7 +18,7 @@ export async function POST() {
       success: true,
       message: 'Account and all associated data successfully deleted',
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Account deletion failed:', err);
     return NextResponse.json({ success: false, error: 'Failed to delete account' }, { status: 500 });
   }

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     await renumberFavorites(user.id);
 
     return NextResponse.json({ message: 'Favorite removed successfully' });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error removing favorite:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
