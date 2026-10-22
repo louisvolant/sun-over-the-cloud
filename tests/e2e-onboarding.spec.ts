@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 // ---------------------------------------------------------------------------
 // End-to-end onboarding journey, exercised against an in-memory fake backend.
 //
-// The app normally talks to MongoDB Atlas through /api/*, which is not
-// configured in the Playwright environment. Instead of skipping the journey,
+// The app normally talks to its API (/api/*, backed by Cloudflare D1), which is
+// not configured in the Playwright environment. Instead of skipping the journey,
 // every API call is intercepted and served by a tiny stateful fake (users,
 // session, favorites). The test therefore runs deterministically and offline
 // while still exercising the real frontend: routing, forms and validation,

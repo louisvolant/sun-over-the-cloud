@@ -4,7 +4,7 @@
 -- password-reset tokens. Ephemeral caches (geocoding results, Open-Meteo day
 -- summaries) live in the KV namespace, not in D1.
 --
--- IDs are TEXT so the existing MongoDB ObjectId strings can be migrated as-is,
+-- IDs are TEXT so they stay stable across exports/imports and remain portable,
 -- keeping every favorite's user_id reference valid.
 
 CREATE TABLE IF NOT EXISTS users (
