@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const favorites = await listFavorites(user.id);
     return NextResponse.json(favorites);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error fetching favorites:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

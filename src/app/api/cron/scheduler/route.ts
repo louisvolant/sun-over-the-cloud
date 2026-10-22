@@ -34,8 +34,12 @@ export async function GET() {
           } else {
             return { location: fav.location_name, status: 'error', error: result.error };
           }
-        } catch (error: any) {
-          return { location: fav.location_name, status: 'error', error: error.message };
+        } catch (error: unknown) {
+          return {
+            location: fav.location_name,
+            status: 'error',
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
       })
     );
@@ -52,7 +56,7 @@ export async function GET() {
         details: results,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Critical error in cron job:', err);
     return NextResponse.json({ error: 'Internal server error during scheduled check' }, { status: 500 });
   }

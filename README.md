@@ -198,3 +198,7 @@ npm run deploy
 ```
 
 The Cloudflare dashboard build command must run the OpenNext bundling step: use `npm run build:worker` as the build command with `npx wrangler deploy` as the deploy command.
+
+### Known follow-ups
+
+- **Rename the `_id` field to `id`.** The D1 columns are already named `id`; `_id` only survives as a compatibility alias in the data-access layer (`src/lib/data.ts`) and is still exposed through the API and the frontend. Renaming it is a breaking change for cached PWA clients and for favorites persisted in IndexedDB, so it should be rolled out in two steps: first return both `id` and `_id` (with the frontend accepting either), then remove `_id` once the new client has been deployed everywhere.
