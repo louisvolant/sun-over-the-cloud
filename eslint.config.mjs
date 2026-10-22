@@ -16,8 +16,19 @@ const eslintConfig = [
     },
   },
   {
-    // next.config.js is a CommonJS config file and intentionally uses require().
-    ignores: ["next.config.js", "postcss.config.mjs"],
+    ignores: [
+      // Build output and local tooling artifacts are not source code.
+      ".next/**",
+      ".open-next/**",
+      ".wrangler/**",
+      "test-results/**",
+      "playwright-report/**",
+      // next.config.js is a CommonJS config file and intentionally uses require().
+      "next.config.js",
+      "postcss.config.mjs",
+      // Standalone CommonJS dev utility, not part of the app bundle.
+      "bundle-code.js",
+    ],
   },
 ];
 
