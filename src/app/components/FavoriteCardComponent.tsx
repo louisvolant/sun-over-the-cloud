@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from './ThemeProvider';
 import useLocationWeather from '@/hooks/useLocationWeather';
 import LocationWeatherContent from './LocationWeatherContent';
+import NextHourRain, { useNextHourRain } from './NextHourRain';
 import { Trash2, ChevronDown, ChevronUp, Loader2, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface FavoriteCardComponentProps {
@@ -90,6 +91,11 @@ export default function FavoriteCardComponent({
   };
 
   const iconCode = weatherData?.weather[0]?.icon || '01d';
+
+  // Compact next-hour rain preview for the collapsed card (desktop favorites
+  // are collapsed by default, so the full card's rain block would otherwise
+  // stay hidden until the user expands this favorite).
+  const { nextFourSlots, hasUpcomingRain, nextHourTotal } = useNextHourRain(weatherData?.minutely_15);
 
   return (
     <div
@@ -235,6 +241,17 @@ export default function FavoriteCardComponent({
           )}
         </div>
       </div>
+
+      {/* Compact next-hour rain preview, visible without expanding the card */}
+      {!isExpanded && hasUpcomingRain && (
+        <NextHourRain
+          nextFourSlots={nextFourSlots}
+          nextHourTotal={nextHourTotal}
+          timezone={weatherData?.timezone || 'UTC'}
+          variant="compact"
+          className="rounded-b-xl"
+        />
+      )}
 
       {/* Expanded Forecast Details (only when expanded and not in organizing mode) */}
       {isExpanded && !isOrganizing && (

@@ -135,6 +135,48 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     await expect(rain24h).toContainText('Lluvia 24h');
   });
 
+  test('shows the compact next-hour rain preview on collapsed desktop favorite cards', async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    const quarterStart = Math.floor(now / 900) * 900;
+    const rainySlots: MinutelyTestSlot[] = [
+      { dt: quarterStart, precipitation: 0.4, rain: 0.4, snowfall: 0 },
+      { dt: quarterStart + 900, precipitation: 1.2, rain: 1.2, snowfall: 0 },
+      { dt: quarterStart + 1800, precipitation: 0.0, rain: 0.0, snowfall: 0 },
+      { dt: quarterStart + 2700, precipitation: 0.7, rain: 0.7, snowfall: 0 },
+    ];
+
+    await installFakeBackend(page, rainySlots);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+
+    // Desktop favorites are collapsed by default: the compact preview must be
+    // visible without expanding the card.
+    const compact = page.locator('[data-testid="next-hour-precipitation-compact"]:visible');
+    await expect(compact).toBeVisible({ timeout: 15000 });
+    await expect(compact).toContainText('Rain in the next hour');
+    await expect(compact).toContainText('2.3 mm');
+
+    const chips = compact.getByTestId('next-hour-rain-slot-compact');
+    await expect(chips).toHaveCount(4);
+    await expect(chips.nth(0)).toContainText('0.4 mm');
+    await expect(chips.nth(1)).toContainText('1.2 mm');
+    await expect(chips.nth(2)).toContainText('0.0 mm');
+    await expect(chips.nth(3)).toContainText('0.7 mm');
+    await expect(chips.nth(0)).toHaveAttribute('title', /^\d{2}:\d{2} – \d{2}:\d{2} · \d+\.\d mm$/);
+
+    // While collapsed, the full (expanded-card) block is not duplicated.
+    await expect(page.locator('[data-testid="next-hour-precipitation"]:visible')).toHaveCount(0);
+
+    // Expanding the favorite swaps the compact preview for the full block.
+    await page.getByRole('button', { name: /Paris/ }).first().click();
+    await expect(page.locator('[data-testid="next-hour-precipitation"]:visible')).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(
+      page.locator('[data-testid="next-hour-precipitation-compact"]:visible')
+    ).toHaveCount(0);
+  });
+
   test('renders the 4 next-hour slots on mobile carousel when rain is expected', async ({ page }) => {
     const now = Math.floor(Date.now() / 1000);
     const quarterStart = Math.floor(now / 900) * 900;
