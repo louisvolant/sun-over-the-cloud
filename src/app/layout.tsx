@@ -8,6 +8,7 @@ import HeaderButtons from './components/HeaderButtons';
 import { AuthProvider } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import PwaZoomController from './components/PwaZoomController';
+import SafeAreaInsets from './components/SafeAreaInsets';
 import ServiceWorkerRegister from './components/ServiceWorkerRegister';
 import ChunkLoadGuard from './components/ChunkLoadGuard';
 import "./globals.css";
@@ -79,6 +80,7 @@ export default function RootLayout({
             <LanguageProvider>
               <ServiceWorkerRegister />
               <PwaZoomController />
+              <SafeAreaInsets />
               <header className="flex flex-row justify-between items-center px-4 py-3 bg-white dark:bg-gray-800 shadow-md pt-[calc(0.75rem+var(--safe-top))]">
                 <Link href="/" className="flex items-center space-x-2 min-w-0 mr-2">
                   <Image src="/icon.png" alt="Sun Over The Cloud" width={36} height={36} className="shrink-0" />
