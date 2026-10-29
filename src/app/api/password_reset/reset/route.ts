@@ -2,8 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteResetToken, getResetToken, updateUserPassword } from '@/lib/data';
 import { hashPassword } from '@/lib/passwordUtils';
+import { assertSameOrigin } from '@/lib/origin';
 
 export async function POST(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   try {
     const { token, newpassword } = await request.json();
 

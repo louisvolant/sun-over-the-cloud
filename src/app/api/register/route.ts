@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createUser, findUserByUsernameOrEmail } from '@/lib/data';
 import { hashPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
+import { assertSameOrigin } from '@/lib/origin';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,6 +21,9 @@ const validateInput = (username?: string, email?: string, password?: string): st
 };
 
 export async function POST(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   try {
     const { username, email, password } = await request.json();
 

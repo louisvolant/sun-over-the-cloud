@@ -1,6 +1,7 @@
 // src/app/api/search/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeocodeCache, setGeocodeCache } from '@/lib/cache';
+import { assertSameOrigin } from '@/lib/origin';
 import {
   buildSearchQueryVariants,
   mergeLocationResults,
@@ -67,6 +68,9 @@ async function fetchGeocodingResults(query: string, lang: string): Promise<Geoco
 }
 
 export async function GET(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   const { searchParams } = new URL(request.url);
   const city = searchParams.get('city');
   const lang = searchParams.get('lang') || 'en';

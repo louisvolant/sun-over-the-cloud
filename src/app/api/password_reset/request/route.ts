@@ -2,11 +2,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createResetToken, findUserByEmail } from '@/lib/data';
+import { assertSameOrigin } from '@/lib/origin';
 
 const MAILJET_API_URL = 'https://api.mailjet.com/v3.1/send';
 const EMAIL_TIMEOUT_MS = 10_000;
 
 export async function POST(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   try {
     const { email } = await request.json();
     if (!email) {

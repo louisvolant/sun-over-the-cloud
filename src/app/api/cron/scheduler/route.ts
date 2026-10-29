@@ -1,9 +1,13 @@
 // src/app/api/cron/scheduler/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { listDistinctFavoriteLocations } from '@/lib/data';
 import { fetchAndSaveDaySummary } from '@/services/oneCallService';
+import { assertSameOrigin } from '@/lib/origin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   console.log('Starting scheduled check...');
 
   try {

@@ -2,8 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { findFavorite, findHighestOrderFavorite, insertFavorite } from '@/lib/data';
+import { assertSameOrigin } from '@/lib/origin';
 
 export async function POST(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

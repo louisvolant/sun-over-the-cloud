@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { findUserByEmail, findUserByUsername } from '@/lib/data';
 import { verifyPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
+import { assertSameOrigin } from '@/lib/origin';
 
 export async function POST(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   try {
     const { username, password } = await request.json();
     if (!username || !password) {

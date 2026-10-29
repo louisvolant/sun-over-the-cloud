@@ -16,10 +16,24 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npm run start',
-    port: 3000,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  webServer: [
+    {
+      // Main e2e server: the explicit test flag lets journeys that use
+      // @example.com pass the registration email policy.
+      command: 'npm run start',
+      port: 3000,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      env: { ...process.env, E2E: '1' } as Record<string, string>,
+    },
+    {
+      // Strict server without the e2e bypass, used by the security tests that
+      // must exercise the real production-mode email policy.
+      command: 'npm run start -- -p 3001',
+      port: 3001,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      env: { ...process.env, E2E: '0' } as Record<string, string>,
+    },
+  ],
 });

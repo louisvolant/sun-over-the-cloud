@@ -1,9 +1,13 @@
 // src/app/api/delete_my_account/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, clearSession } from '@/lib/session';
 import { deleteFavoritesForUser, deleteUser } from '@/lib/data';
+import { assertSameOrigin } from '@/lib/origin';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const originError = assertSameOrigin(request);
+  if (originError) return originError;
+
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ success: false, error: 'Unauthorized - Please log in first' }, { status: 401 });
