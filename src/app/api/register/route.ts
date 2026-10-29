@@ -4,6 +4,7 @@ import { createUser, findUserByUsernameOrEmail } from '@/lib/data';
 import { hashPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
 import { assertSameOrigin } from '@/lib/origin';
+import { isDisallowedEmailDomain, isEmailDomainPolicyBypassed } from '@/lib/emailPolicy';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,20 +33,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const existingUser = await findUserByUsernameOrEmail(username, email);
+    // Normalize before the domain policy and the duplicate lookup so casing and
+    // surrounding whitespace cannot bypass either check.
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    if (!isEmailDomainPolicyBypassed() && isDisallowedEmailDomain(normalizedEmail)) {
+      // Generic message on purpose: do not help bots discover which domains
+      // are blocked.
+      return NextResponse.json({ error: 'Please use a real email address.' }, { status: 400 });
+    }
+
+    const existingUser = await findUserByUsernameOrEmail(username, normalizedEmail);
 
     if (existingUser) {
       let errorMessage = 'User already exists';
       if (existingUser.username.toLowerCase() === username.toLowerCase()) {
         errorMessage = 'Username already exists';
-      } else if (existingUser.email.toLowerCase() === email.toLowerCase()) {
+      } else if (existingUser.email.toLowerCase() === normalizedEmail) {
         errorMessage = 'Email already exists';
       }
       return NextResponse.json({ error: errorMessage }, { status: 409 });
     }
 
     const hashedPassword = await hashPassword(password);
-    const newUser = await createUser({ username, email, hashedPassword });
+    const newUser = await createUser({ username, email: normalizedEmail, hashedPassword });
 
     await setSessionUser({
       id: newUser._id,
