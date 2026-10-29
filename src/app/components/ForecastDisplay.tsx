@@ -4,7 +4,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { ForecastData, WeatherData } from '@/lib/types';
 import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/context/LanguageContext';
-import { getForecast } from '@/lib/weather_api';
+import { getForecast, WEATHER_REQUEST_PRIORITY } from '@/lib/weather_api';
 import { weatherIconMap, weatherIconColorMap, weatherIconAnimationMap } from '@/lib/weatherIconMap';
 import { groupForecastByDay, formatForecastTime } from '@/lib/forecastGrouping';
 import { getSunEventsForItems, filterSunEventsToWindow, mergeTimeline } from '@/lib/sunTimes';
@@ -31,7 +31,9 @@ export default function ForecastDisplay({ weatherData, forecastData, setForecast
     debugLog('Calling getForecast with lat:', weatherData.coord.lat, 'lon:', weatherData.coord.lon);
     isFetchingRef.current = true; // Set flag to prevent duplicate calls
     try {
-      const data = await getForecast(weatherData.coord.lat.toString(), weatherData.coord.lon.toString());
+      const data = await getForecast(weatherData.coord.lat.toString(), weatherData.coord.lon.toString(), {
+        priority: WEATHER_REQUEST_PRIORITY.visible,
+      });
       debugLog('Forecast data received:', data);
       setForecastData(data);
       setError(null);

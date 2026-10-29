@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { getWeatherAndSnow, fetchCachedFavorites, getForecast } from "@/lib/weather_api";
+import { getWeatherAndSnow, fetchCachedFavorites, getForecast, WEATHER_REQUEST_PRIORITY } from "@/lib/weather_api";
 import { getFavorites, addFavorite, removeFavorite, updateFavoriteOrder } from "@/lib/account_api";
 import {
   getLocalWeather,
@@ -184,7 +184,9 @@ export default function Home() {
         setShowGraphs(false);
       }
 
-      const { weather, rainFalls, snowDepth } = await getWeatherAndSnow(location.lat!, location.lon!);
+      const { weather, rainFalls, snowDepth } = await getWeatherAndSnow(location.lat!, location.lon!, {
+        priority: WEATHER_REQUEST_PRIORITY.visible,
+      });
 
       if (weather) {
         const weatherDataToSet: WeatherData = weather as WeatherData;
@@ -203,7 +205,9 @@ export default function Home() {
         // Fetch forecast in background and cache everything in IndexedDB
         let freshForecast: ForecastData | null = null;
         try {
-          freshForecast = await getForecast(location.lat!.toString(), location.lon!.toString());
+          freshForecast = await getForecast(location.lat!.toString(), location.lon!.toString(), {
+            priority: WEATHER_REQUEST_PRIORITY.visible + WEATHER_REQUEST_PRIORITY.forecastOffset,
+          });
           setForecastData(freshForecast);
         } catch (forecastErr) {
           debugLog('Failed background forecast fetch:', forecastErr);
@@ -485,6 +489,33 @@ export default function Home() {
       const cardElem = document.querySelector(`[data-favorite-id="${expandedFavoriteId}"]`) as HTMLElement | null;
       if (cardElem) {
         scrollElementIntoComfortableView(cardElem, 20);
+
+        // The expanded forecast loads asynchronously (and the request scheduler
+        // may stagger it), so the card can grow after the first scroll pass.
+        // Keep it framed while its height settles, but only correct the scroll
+        // when the card is actually out of the comfortable range so a deliberate
+        // user scroll is not overridden.
+        let resizeFrame = 0;
+        let resizeObserver: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== 'undefined') {
+          resizeObserver = new ResizeObserver(() => {
+            cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(() => {
+              const rect = cardElem.getBoundingClientRect();
+              if (rect.top < -10 || rect.top > 150) {
+                scrollElementIntoComfortableView(cardElem, 20);
+              }
+            });
+          });
+          resizeObserver.observe(cardElem);
+        }
+        const stopObserving = setTimeout(() => resizeObserver?.disconnect(), 3000);
+
+        return () => {
+          cancelAnimationFrame(resizeFrame);
+          resizeObserver?.disconnect();
+          clearTimeout(stopObserving);
+        };
       }
     } else if (prevId && !isExplicitUserSearchRef.current) {
       // Favorite card was collapsed directly by user.

@@ -3,7 +3,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WeatherData, ForecastData, PrecipitationData } from '@/lib/types';
-import { getWeatherAndSnow, getForecast } from '@/lib/weather_api';
+import {
+  getWeatherAndSnow,
+  getForecast,
+  prioritizeWeatherRequest,
+  WEATHER_REQUEST_PRIORITY,
+} from '@/lib/weather_api';
 import {
   getLocalWeather,
   saveLocalWeather,
@@ -18,6 +23,14 @@ interface UseLocationWeatherOptions {
   longitude: number;
   locationName: string;
   countryCode?: string;
+  /**
+   * Delay before the live network refresh starts. The IndexedDB snapshot is
+   * still read immediately, so off-screen carousel slides render instantly and
+   * only their upstream refresh is postponed.
+   */
+  fetchDelayMs?: number;
+  /** Scheduler priority for the live refresh; lower values run first. */
+  fetchPriority?: number;
 }
 
 /**
@@ -41,6 +54,8 @@ export default function useLocationWeather({
   longitude,
   locationName,
   countryCode = '',
+  fetchDelayMs = 0,
+  fetchPriority = WEATHER_REQUEST_PRIORITY.default,
 }: UseLocationWeatherOptions) {
   const { t } = useLanguage();
 
@@ -62,9 +77,18 @@ export default function useLocationWeather({
   const forecastDataRef = useRef<ForecastData | null>(null);
   const coordKey = getCoordKey(latitude, longitude);
 
+  // Live-refresh scheduling. Refs keep the effect below independent from the
+  // carousel's active slide: changing the priority/delay must reschedule a
+  // pending request, never trigger a second one.
+  const fetchDelayRef = useRef(fetchDelayMs);
+  const fetchPriorityRef = useRef(fetchPriority);
+  const liveFetchStartedRef = useRef(false);
+  const scheduleLiveFetchRef = useRef<((delay: number) => void) | null>(null);
+
   // 1. Check local IndexedDB immediately on mount for instantaneous rendering
   useEffect(() => {
     let isMounted = true;
+    liveFetchStartedRef.current = false;
 
     getLocalWeather(coordKey)
       .then((cached) => {
@@ -87,10 +111,13 @@ export default function useLocationWeather({
 
     // Background fetch for fresh live weather AND forecast in parallel
     const fetchLiveWeatherAndForecast = async () => {
+      const priority = fetchPriorityRef.current;
       try {
         const [weatherRes, forecastRes] = await Promise.allSettled([
-          getWeatherAndSnow(latitude, longitude),
-          getForecast(latitude.toString(), longitude.toString()),
+          getWeatherAndSnow(latitude, longitude, { priority }),
+          getForecast(latitude.toString(), longitude.toString(), {
+            priority: priority + WEATHER_REQUEST_PRIORITY.forecastOffset,
+          }),
         ]);
 
         if (!isMounted) return;
@@ -141,11 +168,40 @@ export default function useLocationWeather({
       }
     };
 
-    fetchLiveWeatherAndForecast();
+    let fetchTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleLiveFetch = (delay: number) => {
+      if (liveFetchStartedRef.current) return;
+      if (fetchTimer) clearTimeout(fetchTimer);
+      fetchTimer = setTimeout(() => {
+        fetchTimer = null;
+        if (!isMounted || liveFetchStartedRef.current) return;
+        liveFetchStartedRef.current = true;
+        void fetchLiveWeatherAndForecast();
+      }, Math.max(0, delay));
+    };
+
+    scheduleLiveFetchRef.current = scheduleLiveFetch;
+    scheduleLiveFetch(fetchDelayRef.current);
+
     return () => {
       isMounted = false;
+      if (fetchTimer) clearTimeout(fetchTimer);
+      scheduleLiveFetchRef.current = null;
     };
   }, [coordKey, latitude, longitude, locationName, countryCode]);
+
+  // Re-evaluate the pending start when the carousel's active slide changes:
+  // the visible slide is promoted to delay 0, off-screen slides move back.
+  // Once the request has started this is a no-op (same request, no duplicate).
+  useEffect(() => {
+    fetchDelayRef.current = fetchDelayMs;
+    scheduleLiveFetchRef.current?.(fetchDelayMs);
+  }, [fetchDelayMs]);
+
+  useEffect(() => {
+    fetchPriorityRef.current = fetchPriority;
+    prioritizeWeatherRequest(latitude, longitude, fetchPriority);
+  }, [fetchPriority, latitude, longitude]);
 
   // 2. Fallback fetch of forecast data when a view needs it and it is not available yet
   const fetchForecast = useCallback(async () => {
@@ -155,7 +211,9 @@ export default function useLocationWeather({
         setIsLoadingForecast(true);
       }
       setForecastError(null);
-      const data = await getForecast(latitude.toString(), longitude.toString());
+      const data = await getForecast(latitude.toString(), longitude.toString(), {
+        priority: WEATHER_REQUEST_PRIORITY.visible,
+      });
       setForecastData(data);
       forecastDataRef.current = data;
       hasFetchedForecastRef.current = true;

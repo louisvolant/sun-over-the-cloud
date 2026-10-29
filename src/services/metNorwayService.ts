@@ -10,7 +10,12 @@ const DEFAULT_USER_AGENT = 'SunOverTheCloud/1.0 (https://github.com/louisvolant/
 // Worker handler hang (axios used to rely on the Node.js http stack and hang
 // until the runtime cancelled the request).
 const MET_TIMEOUT_MS = 10_000;
+const MINUTELY_15_TIMEOUT_MS = 4_000;
+const UPSTREAM_MAX_ATTEMPTS = 2;
+const UPSTREAM_RETRY_DELAY_MS = 300;
 const MINUTELY_15_CACHE_TTL_MS = 10 * 60 * 1000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // Minimal typings for the MET Norway timeseries fields consumed by this service.
 interface MetInstantDetails {
@@ -168,17 +173,48 @@ export async function fetchLocationForecast(latitude: number, longitude: number)
     headers['If-Modified-Since'] = cached.lastModified;
   }
 
+  let response: Response | null = null;
+  let lastError: unknown = null;
+
   try {
     // Use native fetch instead of axios: axios relies on the Node.js http stack
     // and can hang on Cloudflare Workers until the runtime cancels the request
     // ("Worker's code had hung"). AbortSignal.timeout keeps the whole call
     // bounded, and 304 is treated as a valid response like before.
     const query = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-    const response = await fetch(`${MET_API_URL}?${query.toString()}`, {
-      headers,
-      signal: AbortSignal.timeout(MET_TIMEOUT_MS),
-    });
+    const url = `${MET_API_URL}?${query.toString()}`;
 
+    for (let attempt = 1; attempt <= UPSTREAM_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        response = await fetch(url, {
+          headers,
+          signal: AbortSignal.timeout(MET_TIMEOUT_MS),
+        });
+
+        if (!response.ok && response.status !== 304) {
+          // Rate limits and transient upstream errors are worth one short
+          // retry; other 4xx responses are not.
+          if (
+            (response.status === 429 || response.status >= 500) &&
+            attempt < UPSTREAM_MAX_ATTEMPTS
+          ) {
+            await sleep(UPSTREAM_RETRY_DELAY_MS * attempt);
+            continue;
+          }
+        }
+        break;
+      } catch (error: unknown) {
+        lastError = error;
+        response = null;
+        if (attempt < UPSTREAM_MAX_ATTEMPTS) {
+          await sleep(UPSTREAM_RETRY_DELAY_MS * attempt);
+        }
+      }
+    }
+
+    if (!response) {
+      throw lastError instanceof Error ? lastError : new Error('MET Norway request failed');
+    }
     if (!response.ok && response.status !== 304) {
       throw new Error(`MET Norway responded with status ${response.status}`);
     }
@@ -236,11 +272,43 @@ export async function fetchMinutely15Precipitation(latitude: number, longitude: 
       forecast_minutely_15: '12',
       timeformat: 'unixtime',
     });
+    const url = `${OPEN_METEO_FORECAST_URL}?${query.toString()}`;
 
-    const response = await fetch(`${OPEN_METEO_FORECAST_URL}?${query.toString()}`, {
-      signal: AbortSignal.timeout(MET_TIMEOUT_MS),
-    });
+    let response: Response | null = null;
+    let lastError: unknown = null;
 
+    for (let attempt = 1; attempt <= UPSTREAM_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        response = await fetch(url, {
+          signal: AbortSignal.timeout(MINUTELY_15_TIMEOUT_MS),
+        });
+
+        if (!response.ok) {
+          // One short retry for rate limits / transient server errors. Other
+          // 4xx responses are not retried.
+          if (
+            (response.status === 429 || response.status >= 500) &&
+            attempt < UPSTREAM_MAX_ATTEMPTS
+          ) {
+            await sleep(UPSTREAM_RETRY_DELAY_MS * attempt);
+            continue;
+          }
+        }
+        break;
+      } catch (error: unknown) {
+        lastError = error;
+        response = null;
+        if (attempt < UPSTREAM_MAX_ATTEMPTS) {
+          await sleep(UPSTREAM_RETRY_DELAY_MS * attempt);
+        }
+      }
+    }
+
+    if (!response) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error('Open-Meteo minutely_15 network error');
+    }
     if (!response.ok) {
       throw new Error(`Open-Meteo minutely_15 responded with status ${response.status}`);
     }

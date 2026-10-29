@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useImperativeHandle } from 'react';
 import useLocationWeather from '@/hooks/useLocationWeather';
 import LocationWeatherContent from './LocationWeatherContent';
+import { WEATHER_REQUEST_PRIORITY } from '@/lib/weather_api';
 import { useLanguage } from '@/context/LanguageContext';
 
 export interface CarouselLocation {
@@ -61,12 +62,35 @@ export default function LocationCarousel({ locations, ref, onRemoveFavorite }: L
   const [activeIndex, setActiveIndex] = useState(0);
   const { t } = useLanguage();
 
+  // While a dot/jump programmatically scrolls the track, ignore the transient
+  // intermediate positions reported by `onScroll`: they would otherwise mark
+  // every slide along the way as active, promoting all their weather refreshes
+  // and making the page dots flicker.
+  const programmaticScrollTargetRef = useRef<number | null>(null);
+  const programmaticScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const beginProgrammaticScroll = (index: number) => {
+    programmaticScrollTargetRef.current = index;
+    if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+    programmaticScrollTimerRef.current = setTimeout(() => {
+      programmaticScrollTargetRef.current = null;
+      programmaticScrollTimerRef.current = null;
+    }, 700);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+    };
+  }, []);
+
   // Expose an imperative handle so the parent can focus a slide (e.g. when a
   // location is picked from the mobile search panel or favorites list).
   useImperativeHandle(ref, () => ({
     scrollToIndex: (index: number, behavior: ScrollBehavior = 'smooth') => {
       const el = scrollRef.current;
       const clamped = Math.max(0, Math.min(index, locations.length - 1));
+      beginProgrammaticScroll(clamped);
       setActiveIndex(clamped);
       if (!el) return;
       if (behavior === 'instant') {
@@ -87,6 +111,13 @@ export default function LocationCarousel({ locations, ref, onRemoveFavorite }: L
     const el = scrollRef.current;
     if (!el || el.clientWidth === 0) return;
     const index = Math.round(el.scrollLeft / el.clientWidth);
+    const programmaticTarget = programmaticScrollTargetRef.current;
+    if (programmaticTarget !== null) {
+      // Only accept the destination of a programmatic scroll, never the
+      // intermediate slides it passes through.
+      if (index === programmaticTarget) setActiveIndex(index);
+      return;
+    }
     if (index !== activeIndex && index >= 0 && index < locations.length) {
       setActiveIndex(index);
     }
@@ -95,6 +126,7 @@ export default function LocationCarousel({ locations, ref, onRemoveFavorite }: L
   const jumpTo = (index: number) => {
     const el = scrollRef.current;
     if (!el) return;
+    beginProgrammaticScroll(index);
     el.scrollTo({ left: index * el.clientWidth, behavior: 'smooth' });
     setActiveIndex(index);
   };
@@ -105,12 +137,18 @@ export default function LocationCarousel({ locations, ref, onRemoveFavorite }: L
       <div
         ref={scrollRef}
         onScroll={handleScroll}
+        onPointerDown={() => {
+          // A user gesture takes over from a programmatic scroll.
+          programmaticScrollTargetRef.current = null;
+        }}
         className="flex-1 flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-none"
       >
-        {locations.map((location) => (
+        {locations.map((location, index) => (
           <CarouselSlide
             key={location.key}
             location={location}
+            index={index}
+            activeIndex={activeIndex}
             onRemoveFavorite={onRemoveFavorite}
           />
         ))}
@@ -153,16 +191,28 @@ export default function LocationCarousel({ locations, ref, onRemoveFavorite }: L
  */
 function CarouselSlide({
   location,
+  index,
+  activeIndex,
   onRemoveFavorite,
 }: {
   location: CarouselLocation;
+  index: number;
+  activeIndex: number;
   onRemoveFavorite?: (favoriteId: string) => void;
 }) {
+  // Current-conditions refresh ordering: the slide currently filling the
+  // viewport starts immediately, adjacent slides 200 ms later, and so on. The
+  // scheduler uses the same distance as a priority, so a slide the user swipes
+  // to is promoted ahead of the pending off-screen refreshes. The cached
+  // IndexedDB snapshot still renders instantly on every slide.
+  const distanceFromActive = Math.abs(index - activeIndex);
   const weatherState = useLocationWeather({
     latitude: location.lat,
     longitude: location.lon,
     locationName: location.name,
     countryCode: location.countryCode,
+    fetchDelayMs: distanceFromActive * 200,
+    fetchPriority: distanceFromActive * WEATHER_REQUEST_PRIORITY.perSlide,
   });
 
   const handleToggleFavorite =
