@@ -16,6 +16,8 @@ interface FakeUser {
   username: string;
   email: string;
   password: string;
+  created_at: number;
+  last_login_at: number;
 }
 
 interface FakeFavorite {
@@ -185,7 +187,15 @@ test.describe('Onboarding journey (mocked backend)', () => {
             u.email.toLowerCase() === String(email).toLowerCase(),
         );
         if (exists) return send({ error: 'User already exists' }, 409);
-        const user: FakeUser = { id: newId(), username, email, password };
+        const now = Date.now();
+        const user: FakeUser = {
+          id: newId(),
+          username,
+          email,
+          password,
+          created_at: now,
+          last_login_at: now,
+        };
         users.push(user);
         loggedInUserId = user.id;
         return send({ success: true });
@@ -200,6 +210,7 @@ test.describe('Onboarding journey (mocked backend)', () => {
         if (!user || user.password !== password) {
           return send({ success: false, error: 'Invalid credentials' }, 401);
         }
+        user.last_login_at = Date.now();
         loggedInUserId = user.id;
         return send({ success: true });
       }

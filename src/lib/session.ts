@@ -99,7 +99,13 @@ export async function getSessionUser(): Promise<SessionUser | null> {
  * Set or refresh the session cookie for a logged-in user with a 30-day lifetime.
  */
 export async function setSessionUser(user: SessionUser): Promise<void> {
-  const cookieStore = await cookies();
+  let cookieStore;
+  try {
+    cookieStore = await cookies();
+  } catch {
+    // Graceful fallback outside Next.js request store (e.g. unit tests)
+    return;
+  }
   const payload: SessionPayload = {
     user: {
       id: user.id.toString(),

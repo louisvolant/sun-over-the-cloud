@@ -12,6 +12,7 @@ export interface DbUser {
   email: string;
   hashed_password: string;
   created_at: number;
+  last_login_at: number | null;
 }
 
 export interface DbFavorite {
@@ -32,24 +33,39 @@ export interface DbResetToken {
   expires_at: number;
 }
 
-const USER_COLUMNS = 'id AS _id, username, email, hashed_password, created_at';
+const USER_COLUMNS = 'id AS _id, username, email, hashed_password, created_at, last_login_at';
+const LEGACY_USER_COLUMNS = 'id AS _id, username, email, hashed_password, created_at';
 const FAVORITE_COLUMNS =
   'id AS _id, user_id, location_name, longitude, latitude, country_code, sort_order AS "order"';
 
 // --- Users -----------------------------------------------------------------
 
+async function findUser(whereClause: string, ...binds: unknown[]): Promise<DbUser | null> {
+  try {
+    return await getEnv()
+      .DB.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE ${whereClause}`)
+      .bind(...binds)
+      .first<DbUser>();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('last_login_at') || message.includes('no such column')) {
+      const legacy = await getEnv()
+        .DB.prepare(`SELECT ${LEGACY_USER_COLUMNS} FROM users WHERE ${whereClause}`)
+        .bind(...binds)
+        .first<Omit<DbUser, 'last_login_at'>>();
+      if (!legacy) return null;
+      return { ...legacy, last_login_at: null };
+    }
+    throw err;
+  }
+}
+
 export async function findUserByEmail(email: string): Promise<DbUser | null> {
-  return getEnv()
-    .DB.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE email = ? COLLATE NOCASE LIMIT 1`)
-    .bind(email)
-    .first<DbUser>();
+  return findUser('email = ? COLLATE NOCASE LIMIT 1', email);
 }
 
 export async function findUserByUsername(username: string): Promise<DbUser | null> {
-  return getEnv()
-    .DB.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE username = ? COLLATE NOCASE LIMIT 1`)
-    .bind(username)
-    .first<DbUser>();
+  return findUser('username = ? COLLATE NOCASE LIMIT 1', username);
 }
 
 /** Finds a user whose username or email matches (case-insensitive). */
@@ -57,35 +73,71 @@ export async function findUserByUsernameOrEmail(
   username: string,
   email: string
 ): Promise<DbUser | null> {
-  return getEnv()
-    .DB.prepare(
-      `SELECT ${USER_COLUMNS} FROM users
-       WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE LIMIT 1`
-    )
-    .bind(username, email)
-    .first<DbUser>();
+  return findUser(
+    'username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE LIMIT 1',
+    username,
+    email
+  );
 }
 
 export async function createUser(input: {
   username: string;
   email: string;
   hashedPassword: string;
+  lastLoginAt?: number;
 }): Promise<DbUser> {
   const id = crypto.randomUUID();
   const createdAt = Date.now();
-  await getEnv()
-    .DB.prepare(
-      'INSERT INTO users (id, username, email, hashed_password, created_at) VALUES (?, ?, ?, ?, ?)'
-    )
-    .bind(id, input.username, input.email, input.hashedPassword, createdAt)
-    .run();
+  const lastLoginAt = input.lastLoginAt ?? createdAt;
+  try {
+    await getEnv()
+      .DB.prepare(
+        'INSERT INTO users (id, username, email, hashed_password, created_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .bind(id, input.username, input.email, input.hashedPassword, createdAt, lastLoginAt)
+      .run();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('last_login_at') || message.includes('no such column')) {
+      console.warn('last_login_at column missing, inserting user with legacy columns:', err);
+      await getEnv()
+        .DB.prepare(
+          'INSERT INTO users (id, username, email, hashed_password, created_at) VALUES (?, ?, ?, ?, ?)'
+        )
+        .bind(id, input.username, input.email, input.hashedPassword, createdAt)
+        .run();
+    } else {
+      throw err;
+    }
+  }
   return {
     _id: id,
     username: input.username,
     email: input.email,
     hashed_password: input.hashedPassword,
     created_at: createdAt,
+    last_login_at: lastLoginAt,
   };
+}
+
+/**
+ * Updates the user's last_login_at timestamp in Cloudflare D1.
+ * Never throws, ensuring login is never blocked if D1 schema is unmigrated or fails.
+ */
+export async function updateUserLastLoginAt(
+  id: string,
+  lastLoginAt: number = Date.now()
+): Promise<boolean> {
+  try {
+    const result = await getEnv()
+      .DB.prepare('UPDATE users SET last_login_at = ? WHERE id = ?')
+      .bind(lastLoginAt, id)
+      .run();
+    return (result.meta?.changes ?? 0) > 0;
+  } catch (err: unknown) {
+    console.warn('Failed to update last_login_at (schema may not be migrated yet):', err);
+    return false;
+  }
 }
 
 /** Returns true when a user row was updated. */

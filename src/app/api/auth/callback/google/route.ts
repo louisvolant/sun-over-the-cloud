@@ -1,7 +1,7 @@
 // src/app/api/auth/callback/google/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createUser, findUserByEmail } from '@/lib/data';
+import { createUser, findUserByEmail, updateUserLastLoginAt } from '@/lib/data';
 import { hashPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
 
@@ -58,6 +58,12 @@ export async function GET(request: NextRequest) {
       const hashedPassword = await hashPassword(randomPassword);
 
       userData = await createUser({ username, email, hashedPassword });
+    } else {
+      try {
+        await updateUserLastLoginAt(userData._id);
+      } catch (err) {
+        console.warn('Failed to update last_login_at on Google OAuth login:', err);
+      }
     }
 
     await setSessionUser({

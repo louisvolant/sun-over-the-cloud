@@ -1,6 +1,6 @@
 // src/app/api/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { findUserByEmail, findUserByUsername } from '@/lib/data';
+import { findUserByEmail, findUserByUsername, updateUserLastLoginAt } from '@/lib/data';
 import { verifyPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
 import { assertSameOrigin } from '@/lib/origin';
@@ -20,6 +20,12 @@ export async function POST(request: NextRequest) {
 
     if (!user || !(await verifyPassword(password, user.hashed_password))) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    try {
+      await updateUserLastLoginAt(user._id);
+    } catch (err) {
+      console.warn('Failed to update last_login_at on password login:', err);
     }
 
     await setSessionUser({

@@ -38,6 +38,12 @@ export interface AppEnv {
   CACHE: KVNamespace;
 }
 
+let testEnvOverride: AppEnv | null = null;
+
+export function setTestEnv(env: AppEnv | null): void {
+  testEnvOverride = env;
+}
+
 /**
  * Returns the Cloudflare bindings for the current request.
  *
@@ -46,6 +52,10 @@ export interface AppEnv {
  * a clear error and can degrade gracefully instead of throwing an opaque one.
  */
 export function getEnv(): AppEnv {
+  if (testEnvOverride) {
+    return testEnvOverride;
+  }
+
   let context;
   try {
     context = getCloudflareContext();
