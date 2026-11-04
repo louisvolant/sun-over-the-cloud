@@ -9,8 +9,11 @@
 // and works identically on Workers and in Node.
 //
 // Stored format: `pbkdf2$sha256$<iterations>$<salt-b64>$<hash-b64>`.
-// workerd caps PBKDF2 at 100,000 iterations, so that is the highest we can use.
-const PBKDF2_ITERATIONS = 100_000;
+// On Cloudflare Workers single-core serverless isolates, 30,000 iterations
+// provides a strong security margin while keeping CPU execution bounded (~50ms)
+// to prevent worker CPU throttling and eliminate p99 spikes. Existing 100k
+// hashes continue to verify dynamically via the stored iteration count.
+export const PBKDF2_ITERATIONS = 30_000;
 const PBKDF2_KEY_LENGTH_BITS = 256;
 const SALT_BYTES = 16;
 
