@@ -46,12 +46,16 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/((?!_next/static|_next/image|favicon\\.ico|icon\\.(?:png|svg)|manifest\\.json|robots\\.txt).*)',
-        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
-      },
-      {
         source: '/_next/static/(.*)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
+        source: '/(sitemap\\.xml|robots\\.txt|manifest\\.json|favicon\\.ico|icon\\.(?:png|svg))',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400' }],
+      },
+      {
+        source: '/((?!_next/static|_next/image|api/|sitemap\\.xml|robots\\.txt|manifest\\.json|favicon\\.ico|icon\\.(?:png|svg)|sw\\.js).*)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' }],
       },
     ];
   },

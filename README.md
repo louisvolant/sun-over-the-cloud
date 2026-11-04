@@ -149,6 +149,8 @@ npx playwright test
 
 **Weather and search Edge CDN caching** (`tests/api-cache-headers.spec.ts`): verifies that `/api/onecall`, `/api/forecast`, `/api/search`, and `/api/onecallmonthsummary` return explicit `Cache-Control` headers with `s-maxage` and `stale-while-revalidate` directives to allow Cloudflare CDN edge caching and minimize Worker CPU time.
 
+**Next.js global cache header rules** (`tests/next-config-headers.spec.ts`): verifies that `next.config.mjs` configures immutable caching on static assets, 24-hour edge caching on metadata, and 1-hour Edge CDN caching on pages without clobbering `/api/*` route headers.
+
 ---
 
 ## Cloudflare Workers Deployment
@@ -159,7 +161,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
 
 - `open-next.config.ts` configures the `cloudflare-node` worker wrapper with `edge` converter, `fetch` external request proxy, and dummy incremental, tag, and queue caches, plus an external middleware using the `cloudflare-edge` wrapper and `node:crypto` as an edge external.
 - `wrangler.toml` serves `.open-next/worker.js` with static assets from `.open-next/assets` (`ASSETS` binding), `compatibility_date = "2025-04-01"` and `nodejs_compat` flag. `keep_vars = true` preserves dashboard-managed variables on each deploy.
-- `next.config.js` sets long-lived immutable caching for `/_next/static/*` and `no-cache, no-store, must-revalidate` for all other pages.
+- `next.config.mjs` sets long-lived immutable caching for `/_next/static/*`, 24-hour edge caching for metadata (`sitemap.xml`, `robots.txt`, `manifest.json`, `favicon.ico`, icons), and 1-hour Cloudflare Edge caching (`s-maxage=3600`) for pre-rendered pages while preserving route-level `Cache-Control` headers on `/api/*` routes.
 - Password hashing uses PBKDF2-HMAC-SHA256 through the Web Crypto API (`src/lib/passwordUtils.ts`), stored as `pbkdf2$sha256$<iterations>$<salt>$<hash>`. The previous WASM-based `hash-wasm` Argon2id could not run on workerd, which refuses runtime WebAssembly compilation ("Wasm code generation disallowed by embedder"), so every registration failed with a 500.
 - **Native `fetch` everywhere on the server**: all outbound HTTP from API routes and server services must use the native `fetch` — never axios or Node-http-based clients such as node-mailjet. The Node.js http stack can hang on Cloudflare Workers until the runtime cancels the request ("Worker's code had hung"). This now covers the MET Norway service (`metNorwayService.ts`), the Open-Meteo day/month summary service (`oneCallService.ts`, used by `/api/onecallmonthsummary` and the cron scheduler), the Open-Meteo geocoding cache lookup in `/api/search`, and Mailjet password-reset emails (native `fetch` to `api.mailjet.com` with Basic auth, best-effort so a Mailjet outage never leaks account existence). Slow upstreams are bounded with `AbortSignal.timeout`.
 - **Data storage is Cloudflare D1 + KV — no TCP database driver**:
