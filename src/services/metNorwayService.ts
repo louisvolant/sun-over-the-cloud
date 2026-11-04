@@ -62,15 +62,41 @@ export function calculateFeelsLike(temp: number | null | undefined, humidity: nu
   return Math.round(at * 10) / 10;
 }
 
+const tzOffsetCache = new Map<string, { offset: number; expiresAt: number }>();
+// 12 hours TTL: timezone offsets change at most twice a year for Daylight Saving Time transitions
+const TZ_OFFSET_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+export function clearTimezoneOffsetCacheForTesting(): void {
+  tzOffsetCache.clear();
+}
+
+export function getTimezoneOffsetCacheSize(): number {
+  return tzOffsetCache.size;
+}
+
 /**
- * Calculate UTC offset in seconds for a given IANA timezone.
+ * Calculate UTC offset in seconds for a given IANA timezone with in-memory memoization.
+ * Avoids costly repeated Date.toLocaleString / ICU Intl formatting on every weather request.
  */
-export function getTimezoneOffsetSeconds(timeZone: string): number {
+export function getTimezoneOffsetSeconds(timeZone: string, nowMs: number = Date.now()): number {
+  if (!timeZone) return 0;
+
+  const cached = tzOffsetCache.get(timeZone);
+  if (cached && nowMs < cached.expiresAt) {
+    return cached.offset;
+  }
+
   try {
-    const now = new Date();
+    const now = new Date(nowMs);
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const tzDate = new Date(now.toLocaleString('en-US', { timeZone }));
-    return (tzDate.getTime() - utcDate.getTime()) / 1000;
+    const offset = (tzDate.getTime() - utcDate.getTime()) / 1000;
+
+    tzOffsetCache.set(timeZone, {
+      offset,
+      expiresAt: nowMs + TZ_OFFSET_CACHE_TTL_MS,
+    });
+    return offset;
   } catch {
     return 0;
   }
@@ -166,7 +192,7 @@ export async function fetchLocationForecast(latitude: number, longitude: number)
   const userAgent = process.env.MET_NO_USER_AGENT || DEFAULT_USER_AGENT;
   const headers: Record<string, string> = {
     'User-Agent': userAgent,
-    'Accept': 'application/json',
+    'Accept': '*/*',
   };
 
   if (cached && cached.lastModified) {
