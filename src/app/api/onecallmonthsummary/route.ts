@@ -1,6 +1,7 @@
 // src/app/api/onecallmonthsummary/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchMonthSummary } from '@/services/oneCallService';
+import { MONTH_SUMMARY_CACHE_CONTROL } from '@/lib/constants';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +16,11 @@ export async function GET(request: NextRequest) {
 
   const result = await fetchMonthSummary(parseFloat(lat), parseFloat(lon), parseInt(year), parseInt(month));
   if (result.success) {
-    return NextResponse.json(result.data);
+    return NextResponse.json(result.data, {
+      headers: {
+        'Cache-Control': MONTH_SUMMARY_CACHE_CONTROL,
+      },
+    });
   } else {
     console.error('API Error /api/onecallmonthsummary:', result.error);
     return NextResponse.json({ error: 'Failed to fetch monthly weather data' }, { status: 500 });

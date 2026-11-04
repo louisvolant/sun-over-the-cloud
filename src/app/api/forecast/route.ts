@@ -1,6 +1,7 @@
 // src/app/api/forecast/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getForecast } from '@/services/metNorwayService';
+import { FORECAST_CACHE_CONTROL } from '@/lib/constants';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +14,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const data = await getForecast(parseFloat(lat), parseFloat(lon));
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': FORECAST_CACHE_CONTROL,
+      },
+    });
   } catch (error: unknown) {
     console.error(
       'API Error /api/forecast:',

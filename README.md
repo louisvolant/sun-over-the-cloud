@@ -147,6 +147,8 @@ npx playwright test
 
 **Last login tracking in D1** (`tests/last-login-tracking.spec.ts`): verifies that `last_login_at` is initialized upon password and OAuth account registration, updated upon password and Google OAuth login, and gracefully handles unmigrated schemas without interrupting authentication.
 
+**Weather and search Edge CDN caching** (`tests/api-cache-headers.spec.ts`): verifies that `/api/onecall`, `/api/forecast`, `/api/search`, and `/api/onecallmonthsummary` return explicit `Cache-Control` headers with `s-maxage` and `stale-while-revalidate` directives to allow Cloudflare CDN edge caching and minimize Worker CPU time.
+
 ---
 
 ## Cloudflare Workers Deployment
@@ -164,6 +166,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
   - **D1 (SQLite, binding `DB`)** holds the durable, relational data: `users` (including `created_at` and nullable `last_login_at` timestamps in milliseconds), `user_favorites` and `password_reset_tokens`. The schema lives in `migrations/` (applied with `npm run db:migrate:local` / `db:migrate:remote`) and every query is a prepared statement executed at the edge (`src/lib/data.ts`). There is no connection to open, pool, or time out, which removes the whole class of cold-start handshake failures and "Worker's code had hung" (error 1101) typical of TCP-based database drivers on workerd.
   - **KV (binding `CACHE`)** holds the disposable caches: geocoding results and Open-Meteo day summaries, stored as JSON with a 30-day `expirationTtl` (`src/lib/cache.ts`). They regenerate on demand and are safe to lose.
   - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. Sessions are stateless: they live in a signed cookie (`src/lib/session.ts`), so there is no server-side session store.
+- **Cloudflare Edge CDN caching on weather and search APIs**: `/api/onecall`, `/api/forecast`, `/api/search`, and `/api/onecallmonthsummary` return explicit `Cache-Control` responses with `s-maxage` and `stale-while-revalidate` directives so repetitive meteorological and geocoding queries are answered directly by Cloudflare's global CDN cache without invoking the Worker, reducing CPU time to 0 ms for cached hits.
 
 ### Data storage & migrations
 

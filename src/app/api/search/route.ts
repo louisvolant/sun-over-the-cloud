@@ -8,6 +8,7 @@ import {
   normalizeSearchQuery,
   sortSearchResults,
 } from '@/lib/searchQuery';
+import { SEARCH_CACHE_CONTROL } from '@/lib/constants';
 
 const OPEN_METEO_GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
 
@@ -92,7 +93,11 @@ export async function GET(request: NextRequest) {
   try {
     const cached = await getGeocodeCache<FormattedLocation[]>(lang, cacheKey);
     if (cached) {
-      return NextResponse.json(cached);
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': SEARCH_CACHE_CONTROL,
+        },
+      });
     }
   } catch (cacheErr: unknown) {
     console.warn('Geocode cache lookup failed in /api/search:', errorMessage(cacheErr));
@@ -146,7 +151,11 @@ export async function GET(request: NextRequest) {
       // Ignore cache save errors.
     }
 
-    return NextResponse.json(formattedLocations);
+    return NextResponse.json(formattedLocations, {
+      headers: {
+        'Cache-Control': SEARCH_CACHE_CONTROL,
+      },
+    });
   } catch (error: unknown) {
     console.error('Error in /api/search:', errorMessage(error));
     return NextResponse.json({ error: 'Failed to fetch location data' }, { status: 500 });
