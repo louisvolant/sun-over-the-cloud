@@ -153,6 +153,8 @@ npx playwright test
 
 **PBKDF2 serverless password hashing** (`tests/password-utils.spec.ts`): verifies that `passwordUtils.ts` uses 30,000 PBKDF2 iterations to bound CPU consumption on Cloudflare Workers single-core isolates while maintaining backward compatibility with legacy 100k hashes.
 
+**Cron scheduler batching and pagination** (`tests/cron-scheduler.spec.ts`): verifies that `/api/cron/scheduler` processes locations in bounded chunks, handles empty lists gracefully, and returns pagination metadata to eliminate Worker CPU spikes.
+
 ---
 
 ## Cloudflare Workers Deployment
@@ -171,6 +173,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
   - **KV (binding `CACHE`)** holds the disposable caches: geocoding results and Open-Meteo day summaries, stored as JSON with a 30-day `expirationTtl` (`src/lib/cache.ts`). They regenerate on demand and are safe to lose.
   - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. Sessions are stateless: they live in a signed cookie (`src/lib/session.ts`), so there is no server-side session store.
 - **Cloudflare Edge CDN caching on weather and search APIs**: `/api/onecall`, `/api/forecast`, `/api/search`, and `/api/onecallmonthsummary` return explicit `Cache-Control` responses with `s-maxage` and `stale-while-revalidate` directives so repetitive meteorological and geocoding queries are answered directly by Cloudflare's global CDN cache without invoking the Worker, reducing CPU time to 0 ms for cached hits.
+- **Cron scheduler batching and bounded concurrency**: `/api/cron/scheduler` processes favorite locations in bounded chunks of 3 with configurable pagination parameters (`limit`, `offset`) to smooth CPU execution and prevent p99 CPU timeout spikes on Cloudflare Workers.
 
 ### Data storage & migrations
 
