@@ -159,6 +159,8 @@ npx playwright test
 
 **Package dependencies and security overrides integrity** (`tests/dependencies-integrity.spec.ts`): verifies that `package.json` contains no duplicate dependencies between `dependencies` and `devDependencies`, asserts that transitive security overrides (`serialize-javascript`, `deepmerge`) are active, and validates that core frameworks (Next.js 16.4.4+, React 19.3.1+, `@opennextjs/cloudflare` 1.20.15+, and Wrangler 4.156.1+) satisfy modern security and stability requirements.
 
+**Cloudflare Worker bundle verification** (`tests/worker-bundle.spec.ts`): verifies that `wrangler.toml` targets the correct entrypoint and assets directory, and asserts that `.open-next/worker.js` and `.open-next/assets` are properly compiled and populated by `@opennextjs/cloudflare`.
+
 ---
 
 ## Cloudflare Workers Deployment
