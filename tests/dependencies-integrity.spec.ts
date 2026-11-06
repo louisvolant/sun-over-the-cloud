@@ -38,4 +38,19 @@ test.describe('Package Dependencies and Security Overrides Integrity', () => {
       }
     }
   });
+
+  test('ensures core frameworks and Cloudflare tools are at least secure patched versions', () => {
+    const semverGte = (version: string, targetMajor: number, targetMinor: number, targetPatch: number) => {
+      const clean = version.replace(/^[^\d]*/, '');
+      const [maj, min, pat] = clean.split('.').map((n) => parseInt(n, 10));
+      if (maj > targetMajor) return true;
+      if (maj === targetMajor && min > targetMinor) return true;
+      return maj === targetMajor && min === targetMinor && pat >= targetPatch;
+    };
+
+    expect(semverGte(pkg.dependencies.next, 16, 4, 4)).toBe(true);
+    expect(semverGte(pkg.dependencies.react, 19, 3, 1)).toBe(true);
+    expect(semverGte(pkg.devDependencies['@opennextjs/cloudflare'], 1, 20, 15)).toBe(true);
+    expect(semverGte(pkg.devDependencies.wrangler, 4, 156, 1)).toBe(true);
+  });
 });

@@ -16,25 +16,25 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "axios": "^1.7.9",
-    "flag-icons": "^7.5.0",
+    "axios": "^1.21.0",
+    "flag-icons": "^7.6.0",
     "lucide-react": "^0.511.0",
-    "next": "^16.3.1",
+    "next": "^16.4.4",
     "next-pwa": "^5.6.0",
     "node-mailjet": "^6.0.11",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "recharts": "^2.15.1",
     "recursive-readdir": "^2.2.3",
-    "suncalc": "^2.0.2",
+    "suncalc": "^2.1.1",
     "tailwindcss": "^4.0.0",
     "tz-lookup": "^6.1.25",
     "weathericons": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@opennextjs/cloudflare": "^1.20.6",
-    "@playwright/test": "^1.63.0",
+    "@opennextjs/cloudflare": "^1.20.15",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
@@ -42,10 +42,10 @@
     "@types/suncalc": "^1.9.2",
     "@types/tz-lookup": "^6.1.2",
     "eslint": "^9.19.0",
-    "eslint-config-next": "^16.3.1",
-    "postcss": "^8.5.3",
+    "eslint-config-next": "^16.4.4",
+    "postcss": "^8.5.32",
     "typescript": "^6.0.3",
-    "wrangler": "^4.151.1"
+    "wrangler": "^4.156.1"
   },
   "overrides": {
     "serialize-javascript": "^7.1.3",
