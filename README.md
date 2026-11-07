@@ -157,7 +157,7 @@ npx playwright test
 
 **Timezone offset memoization** (`tests/timezone-offset.spec.ts`): verifies that `getTimezoneOffsetSeconds` in `metNorwayService.ts` calculates and memoizes IANA timezone offsets in memory (12h TTL), handles invalid timezones gracefully, and avoids repeated ICU `Date.toLocaleString` CPU costs on weather requests.
 
-**Package dependencies and security overrides integrity** (`tests/dependencies-integrity.spec.ts`): verifies that `package.json` contains no duplicate dependencies between `dependencies` and `devDependencies`, asserts that transitive security overrides (`serialize-javascript`, `deepmerge`) are active, and validates that core frameworks (Next.js 16.4.4+, React 19.3.1+, `@opennextjs/cloudflare` 1.20.15+, and Wrangler 4.156.1+) satisfy modern security and stability requirements.
+**Package dependencies and security overrides integrity** (`tests/dependencies-integrity.spec.ts`): verifies that `package.json` contains no duplicate dependencies between `dependencies` and `devDependencies`, asserts that transitive security overrides (`serialize-javascript`, `deepmerge`) are active, and validates that core frameworks (Next.js 16.4.5+, React 19.3.1+, Tailwind CSS 4.3.5+, `@opennextjs/cloudflare` 1.20.16+, and Wrangler 4.158.0+) satisfy modern security and stability requirements.
 
 **Cloudflare Worker bundle verification** (`tests/worker-bundle.spec.ts`): verifies that `wrangler.toml` targets the correct entrypoint and assets directory, and asserts that `.open-next/worker.js` and `.open-next/assets` are properly compiled and populated by `@opennextjs/cloudflare`.
 

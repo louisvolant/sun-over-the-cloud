@@ -48,9 +48,11 @@ test.describe('Package Dependencies and Security Overrides Integrity', () => {
       return maj === targetMajor && min === targetMinor && pat >= targetPatch;
     };
 
-    expect(semverGte(pkg.dependencies.next, 16, 4, 4)).toBe(true);
+    expect(semverGte(pkg.dependencies.next, 16, 4, 5)).toBe(true);
     expect(semverGte(pkg.dependencies.react, 19, 3, 1)).toBe(true);
-    expect(semverGte(pkg.devDependencies['@opennextjs/cloudflare'], 1, 20, 15)).toBe(true);
-    expect(semverGte(pkg.devDependencies.wrangler, 4, 156, 1)).toBe(true);
+    expect(semverGte(pkg.dependencies.tailwindcss, 4, 3, 5)).toBe(true);
+    expect(semverGte(pkg.devDependencies['@opennextjs/cloudflare'], 1, 20, 16)).toBe(true);
+    expect(semverGte(pkg.devDependencies.wrangler, 4, 158, 0)).toBe(true);
+    expect(semverGte(pkg.devDependencies['@playwright/test'], 1, 65, 0)).toBe(true);
   });
 });
