@@ -240,6 +240,7 @@ export const getWeatherAndSnow = async (
       sys: { sunrise: currentData.sunrise, sunset: currentData.sunset },
       timezone: data?.timezone,
       timezone_offset: data?.timezone_offset,
+      next_1h_rain: typeof data?.next_1h_rain === 'number' ? data.next_1h_rain : null,
       minutely_15: Array.isArray(data?.minutely_15) ? data.minutely_15 : [],
     };
 

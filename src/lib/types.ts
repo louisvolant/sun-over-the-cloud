@@ -51,6 +51,7 @@ export interface WeatherData {
   timezone: string;
   timezone_offset: number;
   sys: { sunrise: number; sunset: number };
+  next_1h_rain?: number | null;
   minutely_15?: MinutelyCastSlot[];
 }
 

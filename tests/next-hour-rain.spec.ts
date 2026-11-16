@@ -299,4 +299,57 @@ test.describe('Next-hour 15-minute rain forecast in top weather card', () => {
     await expect(rain1h).toBeVisible();
     await expect(rain1h.locator('span').first()).toHaveClass(/whitespace-nowrap/);
   });
+
+  test('falls back to MET Norway next_1h_rain when Open-Meteo minutely_15 is empty', async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    await page.addInitScript(() => window.localStorage.setItem('auth_token', '1'));
+    await page.route('**/sw.js', (route) => route.abort());
+    await page.route('**/api/**', async (route) => {
+      const { pathname } = new URL(route.request().url());
+      const send = (body: unknown) =>
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+      if (pathname === '/api/check-auth') return send({ isAuthenticated: true });
+      if (pathname === '/api/favorites') return send([PARIS]);
+      if (pathname === '/api/cached-favorites') return send([]);
+      if (pathname === '/api/onecall') {
+        return send({
+          current: {
+            temp: 10.2,
+            feels_like: 6.5,
+            humidity: 89,
+            pressure: 1010,
+            weather: [{ description: 'heavy rain', icon: '09d' }],
+            wind_speed: 7.4,
+            wind_deg: 197,
+            clouds: 100,
+            visibility: 10000,
+            sunrise: now - 3600,
+            sunset: now + 3600,
+          },
+          daily: [{ rain: 12.4, snow: 0 }],
+          next_1h_rain: 3.6,
+          minutely_15: [],
+          timezone: 'Europe/Paris',
+          timezone_offset: 3600,
+        });
+      }
+      if (pathname === '/api/forecast') {
+        return send({ list: [], timezone: 'Europe/Paris' });
+      }
+    });
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+
+    const favButton = page.getByRole('button', { name: /Paris/ }).first();
+    await expect(favButton).toBeVisible({ timeout: 15000 });
+    await favButton.click();
+
+    const rain1h = page.locator('[data-testid="rain-next-1h"]:visible').first();
+    await expect(rain1h).toBeVisible();
+    await expect(rain1h).toContainText('Rain 1h');
+    await expect(rain1h).toContainText('3.6 mm');
+    await expect(page.getByTestId('next-hour-precipitation')).toHaveCount(0);
+  });
 });

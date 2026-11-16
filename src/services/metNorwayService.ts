@@ -10,7 +10,7 @@ const DEFAULT_USER_AGENT = 'SunOverTheCloud/1.0 (https://github.com/louisvolant/
 // Worker handler hang (axios used to rely on the Node.js http stack and hang
 // until the runtime cancelled the request).
 const MET_TIMEOUT_MS = 10_000;
-const MINUTELY_15_TIMEOUT_MS = 4_000;
+const MINUTELY_15_TIMEOUT_MS = 2_000;
 const UPSTREAM_MAX_ATTEMPTS = 2;
 const UPSTREAM_RETRY_DELAY_MS = 300;
 const MINUTELY_15_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -300,41 +300,12 @@ export async function fetchMinutely15Precipitation(latitude: number, longitude: 
     });
     const url = `${OPEN_METEO_FORECAST_URL}?${query.toString()}`;
 
-    let response: Response | null = null;
-    let lastError: unknown = null;
+    // Single bounded attempt: minutely_15 is best-effort enrichment, so a slow
+    // or rate-limited Open-Meteo response must never stall /api/onecall.
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(MINUTELY_15_TIMEOUT_MS),
+    });
 
-    for (let attempt = 1; attempt <= UPSTREAM_MAX_ATTEMPTS; attempt += 1) {
-      try {
-        response = await fetch(url, {
-          signal: AbortSignal.timeout(MINUTELY_15_TIMEOUT_MS),
-        });
-
-        if (!response.ok) {
-          // One short retry for rate limits / transient server errors. Other
-          // 4xx responses are not retried.
-          if (
-            (response.status === 429 || response.status >= 500) &&
-            attempt < UPSTREAM_MAX_ATTEMPTS
-          ) {
-            await sleep(UPSTREAM_RETRY_DELAY_MS * attempt);
-            continue;
-          }
-        }
-        break;
-      } catch (error: unknown) {
-        lastError = error;
-        response = null;
-        if (attempt < UPSTREAM_MAX_ATTEMPTS) {
-          await sleep(UPSTREAM_RETRY_DELAY_MS * attempt);
-        }
-      }
-    }
-
-    if (!response) {
-      throw lastError instanceof Error
-        ? lastError
-        : new Error('Open-Meteo minutely_15 network error');
-    }
     if (!response.ok) {
       throw new Error(`Open-Meteo minutely_15 responded with status ${response.status}`);
     }
@@ -426,6 +397,12 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
     }
   }
 
+  const rawNext1hPrecip = currentPoint.data?.next_1_hours?.details?.precipitation_amount;
+  const next1hRain =
+    typeof rawNext1hPrecip === 'number' && rawNext1hPrecip > 0
+      ? Math.round(rawNext1hPrecip * 10) / 10
+      : null;
+
   return {
     current: {
       temp,
@@ -453,6 +430,7 @@ export async function getCurrentWeather(latitude: number, longitude: number) {
         snow: snowTotal > 0 ? Math.round(snowTotal * 10) / 10 : null,
       },
     ],
+    next_1h_rain: next1hRain,
     minutely_15: minutely15Slots.slice(0, 8),
     timezone,
     timezone_offset: timezoneOffset,

@@ -43,6 +43,13 @@ export default function WeatherDisplay({
 
   if (!weatherData) return null;
 
+  // Fall back to MET Norway's next_1_hours precipitation when Open-Meteo minutely_15 is unavailable.
+  const fallbackNext1hRain =
+    typeof weatherData.next_1h_rain === 'number' && weatherData.next_1h_rain >= 0.05
+      ? weatherData.next_1h_rain
+      : null;
+  const displayedNext1hRain = hasUpcomingRain ? nextHourTotal : fallbackNext1hRain;
+
   // Format time to the location's timezone using the IANA timezone
   const formatTime = (timestamp: number, timezone: string) => {
     let formattedTime;
@@ -253,7 +260,7 @@ export default function WeatherDisplay({
               <Sunset className="w-4 h-4 text-indigo-400 shrink-0" />
               <span>{formatTime(weatherData.sys.sunset, timezone)}</span>
             </div>
-            {hasUpcomingRain && (
+            {displayedNext1hRain !== null && (
               <div
                 className="flex items-center gap-1.5"
                 data-testid="rain-next-1h"
@@ -262,7 +269,7 @@ export default function WeatherDisplay({
                 <CloudRain className="w-4 h-4 text-blue-500 shrink-0" />
                 <span className="whitespace-nowrap">
                   {t('rain_next_1h_label')}{' '}
-                  <span className="font-semibold">{nextHourTotal.toFixed(1)} {t('rain_unit')}</span>
+                  <span className="font-semibold">{displayedNext1hRain.toFixed(1)} {t('rain_unit')}</span>
                 </span>
               </div>
             )}
