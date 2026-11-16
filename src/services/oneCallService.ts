@@ -1,10 +1,22 @@
 // src/services/oneCallService.ts
-import { getDaySummaryCache, setDaySummaryCache } from '@/lib/cache';
+import {
+  getDaySummaryCache,
+  getMonthSummaryCache,
+  setDaySummaryCache,
+  setMonthSummaryCache,
+} from '@/lib/cache';
 
 // Bound the outbound HTTP calls so a slow Open-Meteo endpoint can never make a
 // Worker handler hang (the former axios calls relied on the Node.js http stack
 // and hung until the runtime cancelled the request).
-const OPEN_METEO_TIMEOUT_MS = 10_000;
+const OPEN_METEO_TIMEOUT_MS = 6_000;
+
+function isTimeoutError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === 'TimeoutError' || err.name === 'AbortError') return true;
+  const msg = err.message.toLowerCase();
+  return msg.includes('timeout') || msg.includes('aborted');
+}
 
 /**
  * Native-fetch replacement for the former axios.get calls. Axios relies on the
@@ -93,6 +105,17 @@ export async function fetchMonthSummary(lat: number, lon: number, year: number, 
   try {
     const today = new Date();
     const isCurrentMonth = (year === today.getFullYear() && month === (today.getMonth() + 1));
+
+    // Best-effort KV cache read: serves past & recent months without hitting Open-Meteo.
+    try {
+      const cached = await getMonthSummaryCache<unknown[]>(lat, lon, year, month);
+      if (cached) {
+        return { success: true, data: cached };
+      }
+    } catch {
+      // KV bindings may be unavailable in local dev or tests; continue to upstream.
+    }
+
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
 
     let endDate: string;
@@ -128,6 +151,11 @@ export async function fetchMonthSummary(lat: number, lon: number, year: number, 
     try {
       response = await fetchOpenMeteo(primaryUrl, params);
     } catch (primaryErr: unknown) {
+      // Do not cascade into a second 6s timeout if Open-Meteo is globally timing out;
+      // only fall back for non-timeout errors (e.g. date-range 400/404 between endpoints).
+      if (isTimeoutError(primaryErr)) {
+        throw primaryErr;
+      }
       console.warn(`Primary Open-Meteo endpoint (${primaryUrl}) failed, falling back to ${fallbackUrl}:`, errorMessage(primaryErr));
       response = await fetchOpenMeteo(fallbackUrl, params);
     }
@@ -150,6 +178,13 @@ export async function fetchMonthSummary(lat: number, lon: number, year: number, 
         afternoon: daily.cloud_cover_mean ? Math.round(daily.cloud_cover_mean[idx] ?? 0) : 0,
       },
     }));
+
+    // Best-effort KV cache write: a KV hiccup must never fail the response.
+    try {
+      await setMonthSummaryCache(lat, lon, year, month, isCurrentMonth, dailySummaries);
+    } catch (cacheErr: unknown) {
+      console.warn('Failed to cache month summary:', errorMessage(cacheErr));
+    }
 
     return { success: true, data: dailySummaries };
   } catch (error: unknown) {
