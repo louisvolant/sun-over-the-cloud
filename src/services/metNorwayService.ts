@@ -2,6 +2,9 @@
 import * as SunCalc from 'suncalc';
 import tzLookup from 'tz-lookup';
 import { MinutelyCastSlot } from '@/lib/types';
+import { calculateFeelsLike } from '@/lib/feelsLike';
+
+export { calculateFeelsLike };
 
 const MET_API_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
 const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -49,18 +52,6 @@ interface CachedEntry {
 }
 
 const metCache = new Map<string, CachedEntry>();
-
-/**
- * Calculate Steadman apparent temperature (feels like) based on air temperature, humidity, and wind speed.
- */
-export function calculateFeelsLike(temp: number | null | undefined, humidity: number | null | undefined, windSpeed: number | null | undefined): number {
-  if (temp == null) return 0;
-  const rh = humidity ?? 50;
-  const ws = windSpeed ?? 0;
-  const e = (rh / 100) * 6.105 * Math.exp((17.27 * temp) / (237.7 + temp));
-  const at = temp + 0.33 * e - 0.70 * ws - 4.0;
-  return Math.round(at * 10) / 10;
-}
 
 const tzOffsetCache = new Map<string, { offset: number; expiresAt: number }>();
 // 12 hours TTL: timezone offsets change at most twice a year for Daylight Saving Time transitions

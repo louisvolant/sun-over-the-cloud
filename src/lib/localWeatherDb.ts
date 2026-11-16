@@ -4,6 +4,7 @@
 import { WeatherData, ForecastData, FavoriteLocation, MinutelyCastSlot } from './types';
 import { FAVORITES_UPDATED_EVENT } from './constants';
 import { debugLog } from './logger';
+import { calculateFeelsLike } from './feelsLike';
 
 export interface LocalCachedWeather {
   key: string;
@@ -182,7 +183,11 @@ export function getAdjustedWeatherForNow(cached: LocalCachedWeather | null): {
         main: {
           ...adjustedWeather.main,
           temp: closestItem.main.temp,
-          feels_like: closestItem.main.temp, // Fallback feels like to predicted temp
+          feels_like: calculateFeelsLike(
+            closestItem.main.temp,
+            adjustedWeather.main.humidity,
+            adjustedWeather.wind?.speed
+          ),
         },
         weather: closestItem.weather && closestItem.weather.length > 0
           ? [
