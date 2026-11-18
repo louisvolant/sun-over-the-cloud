@@ -81,7 +81,8 @@ A progressive weather web application designed for exploring live meteorological
 Create a `.env.local` file in the project root with the required environment variables:
 
 ```env
-# Session Cookie Secret
+# Session Cookie Secret — mandatory in production: the server refuses to sign
+# or verify sessions (fail closed) when it is missing.
 SESSION_COOKIE_KEY=...
 
 # MET Norway User-Agent (Terms of Service requirement)
@@ -177,7 +178,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
 - **Data storage is Cloudflare D1 + KV — no TCP database driver**:
   - **D1 (SQLite, binding `DB`)** holds the durable, relational data: `users` (including `created_at` and nullable `last_login_at` timestamps in milliseconds), `user_favorites` and `password_reset_tokens`. The schema lives in `migrations/` (applied with `npm run db:migrate:local` / `db:migrate:remote`) and every query is a prepared statement executed at the edge (`src/lib/data.ts`). There is no connection to open, pool, or time out, which removes the whole class of cold-start handshake failures and "Worker's code had hung" (error 1101) typical of TCP-based database drivers on workerd.
   - **KV (binding `CACHE`)** holds the disposable caches: geocoding results and Open-Meteo day summaries, stored as JSON with a 30-day `expirationTtl` (`src/lib/cache.ts`). They regenerate on demand and are safe to lose.
-  - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. Sessions are stateless: they live in a signed cookie (`src/lib/session.ts`), so there is no server-side session store.
+  - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. Sessions are stateless: they live in a signed cookie (`src/lib/session.ts`), so there is no server-side session store. The signing key comes from `SESSION_COOKIE_KEY`; a production deployment without it fails closed (sessions can neither be signed nor verified) instead of silently falling back to a predictable hardcoded secret, while local development and tests use a random per-process key.
 - **Cloudflare Edge CDN caching on weather and search APIs**: `/api/onecall`, `/api/forecast`, `/api/search`, and `/api/onecallmonthsummary` return explicit `Cache-Control` responses with `s-maxage` and `stale-while-revalidate` directives so repetitive meteorological and geocoding queries are answered directly by Cloudflare's global CDN cache without invoking the Worker, reducing CPU time to 0 ms for cached hits.
 - **Cron scheduler batching and bounded concurrency**: `/api/cron/scheduler` processes favorite locations in bounded chunks of 3 with configurable pagination parameters (`limit`, `offset`) to smooth CPU execution and prevent p99 CPU timeout spikes on Cloudflare Workers.
 - **Timezone offset memoization**: `getTimezoneOffsetSeconds` caches IANA timezone offset calculations in memory (`src/services/metNorwayService.ts`, 12h TTL) to avoid expensive `Date.toLocaleString` formatting and ICU Intl runtime parsing on every weather request.

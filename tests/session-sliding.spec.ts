@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   signPayload,
   verifyToken,
+  getSessionSecret,
   SESSION_DURATION_DAYS,
   SESSION_DURATION_SEC,
   SESSION_DURATION_MS,
@@ -83,5 +84,45 @@ test.describe('Session and Sliding Authentication', () => {
     const twoDaysAgoExp = now + SESSION_DURATION_MS - 2 * 24 * 60 * 60 * 1000;
     const needsRefreshOlder = twoDaysAgoExp - now < SESSION_DURATION_MS - REFRESH_THRESHOLD_MS;
     expect(needsRefreshOlder).toBe(true);
+  });
+});
+
+test.describe('Session secret configuration (fail closed in production)', () => {
+  const originalSecret = process.env.SESSION_COOKIE_KEY;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  test.afterEach(() => {
+    if (originalSecret === undefined) {
+      delete process.env.SESSION_COOKIE_KEY;
+    } else {
+      process.env.SESSION_COOKIE_KEY = originalSecret;
+    }
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  test('signs and verifies with the configured SESSION_COOKIE_KEY', () => {
+    process.env.SESSION_COOKIE_KEY = 'test_secret_key_0123456789abcdef';
+    const payloadStr = Buffer.from(
+      JSON.stringify({ user: { id: 'user_12345', username: 'testuser' }, exp: Date.now() + 60_000 })
+    ).toString('base64url');
+
+    expect(verifyToken(signPayload(payloadStr))?.user.id).toBe('user_12345');
+  });
+
+  test('refuses to sign sessions in production when SESSION_COOKIE_KEY is missing', () => {
+    delete process.env.SESSION_COOKIE_KEY;
+    process.env.NODE_ENV = 'production';
+
+    expect(() => getSessionSecret()).toThrow(/SESSION_COOKIE_KEY/);
+  });
+
+  test('outside production, falls back to a random per-process secret instead of a predictable default', () => {
+    delete process.env.SESSION_COOKIE_KEY;
+    process.env.NODE_ENV = 'development';
+
+    const secret = getSessionSecret();
+    expect(secret).not.toBe('default_secret_key_change_me');
+    // Stable within the process so dev sessions survive unrelated calls.
+    expect(getSessionSecret()).toBe(secret);
   });
 });

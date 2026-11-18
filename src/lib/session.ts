@@ -18,13 +18,35 @@ export interface SessionPayload {
   exp: number;
 }
 
+// Dev/test-only signing secret, generated once per process so a
+// non-production server never signs sessions with a predictable value.
+let ephemeralDevSecret: string | null = null;
+
 /**
  * Retrieve secret key dynamically from environment.
  * Evaluated on each invocation to ensure runtime secrets (e.g. Cloudflare Workers bindings)
  * are always current.
+ *
+ * Security: a missing SESSION_COOKIE_KEY used to silently fall back to a
+ * hardcoded default, letting anyone who reads the source forge a valid session
+ * cookie for any user id. The route now fails closed in production — sessions
+ * can neither be signed nor verified until the key is configured — while
+ * development and tests keep working with a random per-process secret.
  */
 export function getSessionSecret(): string {
-  return process.env.SESSION_COOKIE_KEY || 'default_secret_key_change_me';
+  const secret = process.env.SESSION_COOKIE_KEY;
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'SESSION_COOKIE_KEY is not configured: refusing to sign or verify sessions with a fallback secret'
+    );
+  }
+
+  if (!ephemeralDevSecret) {
+    ephemeralDevSecret = crypto.randomBytes(32).toString('base64url');
+  }
+  return ephemeralDevSecret;
 }
 
 /**
