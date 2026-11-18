@@ -91,13 +91,19 @@ test.describe('Session secret configuration (fail closed in production)', () => 
   const originalSecret = process.env.SESSION_COOKIE_KEY;
   const originalNodeEnv = process.env.NODE_ENV;
 
+  // `process.env.NODE_ENV` is typed read-only by Next.js; the test suite
+  // manipulates it through a widened record to exercise both branches.
+  const setNodeEnv = (value: string) => {
+    (process.env as Record<string, string | undefined>).NODE_ENV = value;
+  };
+
   test.afterEach(() => {
     if (originalSecret === undefined) {
       delete process.env.SESSION_COOKIE_KEY;
     } else {
       process.env.SESSION_COOKIE_KEY = originalSecret;
     }
-    process.env.NODE_ENV = originalNodeEnv;
+    setNodeEnv(originalNodeEnv ?? 'test');
   });
 
   test('signs and verifies with the configured SESSION_COOKIE_KEY', () => {
@@ -111,14 +117,14 @@ test.describe('Session secret configuration (fail closed in production)', () => 
 
   test('refuses to sign sessions in production when SESSION_COOKIE_KEY is missing', () => {
     delete process.env.SESSION_COOKIE_KEY;
-    process.env.NODE_ENV = 'production';
+    setNodeEnv('production');
 
     expect(() => getSessionSecret()).toThrow(/SESSION_COOKIE_KEY/);
   });
 
   test('outside production, falls back to a random per-process secret instead of a predictable default', () => {
     delete process.env.SESSION_COOKIE_KEY;
-    process.env.NODE_ENV = 'development';
+    setNodeEnv('development');
 
     const secret = getSessionSecret();
     expect(secret).not.toBe('default_secret_key_change_me');
