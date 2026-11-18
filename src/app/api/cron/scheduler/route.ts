@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listDistinctFavoriteLocations } from '@/lib/data';
 import { fetchAndSaveDaySummary } from '@/services/oneCallService';
 import { assertSameOrigin } from '@/lib/origin';
+import { requireCronAuth } from '@/lib/cronAuth';
 
 // Bounded concurrency and batch sizes to prevent Worker CPU spikes (p99 latency)
 // when processing multiple distinct favorite locations.
@@ -13,6 +14,12 @@ const CHUNK_CONCURRENCY = 3;
 export async function GET(request: NextRequest) {
   const originError = assertSameOrigin(request);
   if (originError) return originError;
+
+  // Schedulers never send an Origin header, so the origin check alone would
+  // let any visitor trigger mass upstream fetches: a bearer secret is the
+  // actual gate (fail closed in production, see src/lib/cronAuth.ts).
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
   const rawLimit = searchParams.get('limit');

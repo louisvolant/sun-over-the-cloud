@@ -161,7 +161,7 @@ npx playwright test
 
 **Hashed password reset tokens** (`tests/reset-token-security.spec.ts`): verifies against an in-memory D1 double that only the SHA-256 hash of an emailed token matches the stored row (presenting the leaked `token_hash` itself fails), that a valid token is redeemed exactly once and consumed, that unknown tokens never touch the password, and that the reset endpoint enforces the shared 15-character policy.
 
-**Cron scheduler batching and pagination** (`tests/cron-scheduler.spec.ts`): verifies that `/api/cron/scheduler` processes locations in bounded chunks, handles empty lists gracefully, and returns pagination metadata to eliminate Worker CPU spikes.
+**Cron scheduler batching and pagination** (`tests/cron-scheduler.spec.ts`): verifies that `/api/cron/scheduler` processes locations in bounded chunks, handles empty lists gracefully, and returns pagination metadata to eliminate Worker CPU spikes. It also verifies the bearer-secret gate (`CRON_SECRET`): without a configured secret the endpoint stays open outside production, while a configured secret rejects missing, wrong or malformed `Authorization` headers with `401` and accepts the exact value.
 
 **Timezone offset memoization** (`tests/timezone-offset.spec.ts`): verifies that `getTimezoneOffsetSeconds` in `metNorwayService.ts` calculates and memoizes IANA timezone offsets in memory (12h TTL), handles invalid timezones gracefully, and avoids repeated ICU `Date.toLocaleString` CPU costs on weather requests.
 
@@ -187,7 +187,7 @@ This app runs on Cloudflare Workers via the OpenNext Cloudflare adapter (`@openn
   - **KV (binding `CACHE`)** holds the disposable caches: geocoding results and Open-Meteo day summaries, stored as JSON with a 30-day `expirationTtl` (`src/lib/cache.ts`). They regenerate on demand and are safe to lose.
   - The Google OAuth callback, credential login, registration, password change/reset, account deletion, favorites and the cron scheduler all read/write D1 through the typed helpers in `src/lib/data.ts`. Sessions are stateless: they live in a signed cookie (`src/lib/session.ts`), so there is no server-side session store. The signing key comes from `SESSION_COOKIE_KEY`; a production deployment without it fails closed (sessions can neither be signed nor verified) instead of silently falling back to a predictable hardcoded secret, while local development and tests use a random per-process key.
 - **Cloudflare Edge CDN caching on weather and search APIs**: `/api/onecall`, `/api/forecast`, `/api/search`, and `/api/onecallmonthsummary` return explicit `Cache-Control` responses with `s-maxage` and `stale-while-revalidate` directives so repetitive meteorological and geocoding queries are answered directly by Cloudflare's global CDN cache without invoking the Worker, reducing CPU time to 0 ms for cached hits.
-- **Cron scheduler batching and bounded concurrency**: `/api/cron/scheduler` processes favorite locations in bounded chunks of 3 with configurable pagination parameters (`limit`, `offset`) to smooth CPU execution and prevent p99 CPU timeout spikes on Cloudflare Workers.
+- **Cron scheduler batching and bounded concurrency**: `/api/cron/scheduler` processes favorite locations in bounded chunks of 3 with configurable pagination parameters (`limit`, `offset`) to smooth CPU execution and prevent p99 CPU timeout spikes on Cloudflare Workers. Because schedulers never send an `Origin` header, the endpoint is additionally gated by a bearer secret: requests must carry `Authorization: Bearer <CRON_SECRET>` (compared in constant time, `src/lib/cronAuth.ts`), and a production deployment without `CRON_SECRET` configured fails closed with `503 {"error":"cron_secret_not_configured"}` so no visitor can trigger mass upstream fetches. Set the secret with `wrangler secret put CRON_SECRET` and configure the external scheduler to send the header.
 - **Timezone offset memoization**: `getTimezoneOffsetSeconds` caches IANA timezone offset calculations in memory (`src/services/metNorwayService.ts`, 12h TTL) to avoid expensive `Date.toLocaleString` formatting and ICU Intl runtime parsing on every weather request.
 
 ### Data storage & migrations
@@ -204,9 +204,9 @@ npm run db:migrate:remote   # production D1
 All variables are managed via the Cloudflare dashboard or `wrangler secret put`. No `[vars]` block is committed:
 
 ```text
-BACKEND_URL, FRONTEND_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MAILJET_API_KEY,
-MAILJET_API_SECRET, MAILJET_SENDER_EMAIL, MET_NO_USER_AGENT, NEXT_PUBLIC_BACKEND_URL,
-REDIRECT_URI, SESSION_COOKIE_KEY
+BACKEND_URL, CRON_SECRET, FRONTEND_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+MAILJET_API_KEY, MAILJET_API_SECRET, MAILJET_SENDER_EMAIL, MET_NO_USER_AGENT,
+NEXT_PUBLIC_BACKEND_URL, REDIRECT_URI, SESSION_COOKIE_KEY
 ```
 
 For local development, copy these into `.env.local`.

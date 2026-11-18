@@ -57,6 +57,7 @@ function createMockCronEnv(favorites: Array<{ location_name: string; latitude: n
 test.describe('Cron Scheduler Chunking and Batching', () => {
   test.afterEach(() => {
     setTestEnv(null);
+    delete process.env.CRON_SECRET;
   });
 
   test('returns early with message when no favorites exist', async () => {
@@ -141,3 +142,64 @@ test.describe('Cron Scheduler Chunking and Batching', () => {
     expect(body3.processedCount).toBe(0);
   });
 });
+
+test.describe('Cron Scheduler Bearer Authentication', () => {
+  test.afterEach(() => {
+    setTestEnv(null);
+    delete process.env.CRON_SECRET;
+  });
+
+  test('stays open without a configured secret outside production', async () => {
+    delete process.env.CRON_SECRET;
+    const { env } = createMockCronEnv([]);
+    setTestEnv(env);
+
+    // The Playwright runner runs with NODE_ENV=test: no secret configured,
+    // the endpoint keeps working for local runs and existing tests.
+    const res = await cronRoute(new NextRequest('http://localhost:3000/api/cron/scheduler'));
+    expect(res.status).toBe(200);
+  });
+
+  test('rejects missing, wrong and malformed bearer tokens when CRON_SECRET is configured', async () => {
+    process.env.CRON_SECRET = 'cron-secret-value-0123456789';
+    const { env } = createMockCronEnv([]);
+    setTestEnv(env);
+
+    const noHeader = await cronRoute(new NextRequest('http://localhost:3000/api/cron/scheduler'));
+    expect(noHeader.status).toBe(401);
+    expect((await noHeader.json()).error).toBe('unauthorized');
+
+    const wrongToken = await cronRoute(
+      new NextRequest('http://localhost:3000/api/cron/scheduler', {
+        headers: { Authorization: 'Bearer not-the-configured-secret' },
+      })
+    );
+    expect(wrongToken.status).toBe(401);
+
+    const malformed = await cronRoute(
+      new NextRequest('http://localhost:3000/api/cron/scheduler', {
+        headers: { Authorization: cronSecretHeaderVariant() },
+      })
+    );
+    expect(malformed.status).toBe(401);
+  });
+
+  test('processes the batch when the exact bearer secret is presented', async () => {
+    process.env.CRON_SECRET = 'cron-secret-value-0123456789';
+    const { env } = createMockCronEnv([]);
+    setTestEnv(env);
+
+    const res = await cronRoute(
+      new NextRequest('http://localhost:3000/api/cron/scheduler', {
+        headers: { Authorization: 'Bearer cron-secret-value-0123456789' },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).message).toBe('No favorite locations to process');
+  });
+});
+
+/** A syntactically broken Authorization header must never authenticate. */
+function cronSecretHeaderVariant(): string {
+  return 'cron-secret-value-0123456789'; // no "Bearer " prefix
+}
