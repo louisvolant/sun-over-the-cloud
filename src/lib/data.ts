@@ -28,7 +28,7 @@ export interface DbFavorite {
 export interface DbResetToken {
   _id: string;
   user_id: string;
-  token: string;
+  token_hash: string;
   created_at: number;
   expires_at: number;
 }
@@ -305,28 +305,31 @@ export async function listPopularFavorites(
 }
 
 // --- Password reset tokens -------------------------------------------------
+//
+// Only SHA-256 hashes of reset tokens are stored (see src/lib/resetToken.ts):
+// a database copy alone can never redeem a reset link.
 
 export async function createResetToken(input: {
   userId: string;
-  token: string;
+  tokenHash: string;
   expiresAt: number;
 }): Promise<void> {
   await getEnv()
     .DB.prepare(
-      `INSERT INTO password_reset_tokens (id, user_id, token, created_at, expires_at)
+      `INSERT INTO password_reset_tokens (id, user_id, token_hash, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?)`
     )
-    .bind(crypto.randomUUID(), input.userId, input.token, Date.now(), input.expiresAt)
+    .bind(crypto.randomUUID(), input.userId, input.tokenHash, Date.now(), input.expiresAt)
     .run();
 }
 
-export async function getResetToken(token: string): Promise<DbResetToken | null> {
+export async function getResetToken(tokenHash: string): Promise<DbResetToken | null> {
   return getEnv()
     .DB.prepare(
-      `SELECT id AS _id, user_id, token, created_at, expires_at
-       FROM password_reset_tokens WHERE token = ? LIMIT 1`
+      `SELECT id AS _id, user_id, token_hash, created_at, expires_at
+       FROM password_reset_tokens WHERE token_hash = ? LIMIT 1`
     )
-    .bind(token)
+    .bind(tokenHash)
     .first<DbResetToken>();
 }
 

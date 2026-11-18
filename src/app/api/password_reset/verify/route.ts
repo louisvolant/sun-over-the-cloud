@@ -1,6 +1,7 @@
 // src/app/api/password_reset/verify/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getResetToken } from '@/lib/data';
+import { hashResetToken } from '@/lib/resetToken';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -11,7 +12,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tokenDoc = await getResetToken(token);
+    // Tokens are stored hashed: the incoming raw token is hashed before the
+    // lookup, never compared against a stored plaintext value.
+    const tokenDoc = await getResetToken(hashResetToken(token));
 
     if (!tokenDoc || tokenDoc.expires_at < Date.now()) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' });

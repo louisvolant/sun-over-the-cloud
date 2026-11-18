@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteResetToken, getResetToken, updateUserPassword } from '@/lib/data';
 import { hashPassword } from '@/lib/passwordUtils';
+import { hashResetToken } from '@/lib/resetToken';
+import { validatePasswordStrength } from '@/lib/passwordPolicy';
 import { assertSameOrigin } from '@/lib/origin';
 
 export async function POST(request: NextRequest) {
@@ -15,7 +17,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Token and new password are required' }, { status: 400 });
     }
 
-    const tokenDoc = await getResetToken(token);
+    // Shared policy: a reset must not be usable to weaken an account below
+    // the registration bar (this route previously accepted any length).
+    const passwordError = validatePasswordStrength(newpassword);
+    if (passwordError) {
+      return NextResponse.json({ success: false, error: passwordError }, { status: 400 });
+    }
+
+    // Tokens are stored hashed: the incoming raw token never hits the
+    // database as-is.
+    const tokenDoc = await getResetToken(hashResetToken(String(token)));
 
     if (!tokenDoc || tokenDoc.expires_at < Date.now()) {
       return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 400 });
@@ -24,6 +35,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(newpassword);
 
     await updateUserPassword(tokenDoc.user_id, hashedPassword);
+    // Single-use: the token is consumed on success.
     await deleteResetToken(tokenDoc._id);
 
     return NextResponse.json({ success: true });

@@ -1,7 +1,7 @@
 // src/app/api/password_reset/request/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { createResetToken, findUserByEmail } from '@/lib/data';
+import { generateResetToken, hashResetToken } from '@/lib/resetToken';
 import { assertSameOrigin } from '@/lib/origin';
 
 const MAILJET_API_URL = 'https://api.mailjet.com/v3.1/send';
@@ -29,10 +29,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = generateResetToken();
     const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
-    await createResetToken({ userId: user._id, token, expiresAt });
+    // Security: only the SHA-256 hash of the token is persisted, so a copy
+    // of the database can never redeem a reset link. The raw token travels
+    // solely through the emailed link.
+    await createResetToken({ userId: user._id, tokenHash: hashResetToken(token), expiresAt });
 
     if (process.env.MAILJET_API_KEY && process.env.MAILJET_API_SECRET) {
       const frontendUrl = process.env.FRONTEND_URL || request.nextUrl.origin;
