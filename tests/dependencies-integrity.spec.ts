@@ -48,7 +48,9 @@ test.describe('Package Dependencies and Security Overrides Integrity', () => {
       return maj === targetMajor && min === targetMinor && pat >= targetPatch;
     };
 
-    expect(semverGte(pkg.dependencies.next, 16, 4, 5)).toBe(true);
+    // 16.4.6 is the first stable patch that closes the known security
+    // advisory flagged by `next build`; 16.4.5 must never come back.
+    expect(semverGte(pkg.dependencies.next, 16, 4, 6)).toBe(true);
     expect(semverGte(pkg.dependencies.react, 19, 3, 1)).toBe(true);
     expect(semverGte(pkg.dependencies.tailwindcss, 4, 3, 5)).toBe(true);
     expect(semverGte(pkg.devDependencies['@opennextjs/cloudflare'], 1, 20, 16)).toBe(true);
