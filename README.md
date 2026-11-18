@@ -211,6 +211,52 @@ NEXT_PUBLIC_BACKEND_URL, REDIRECT_URI, SESSION_COOKIE_KEY
 
 For local development, copy these into `.env.local`.
 
+### Rate Limiting (Cloudflare WAF)
+
+The app enforces no in-code rate limit: login, registration and the password-reset request can be brute-forced, and the weather/search proxies can be used to burn upstream API quotas. The recommended mitigation lives in the Cloudflare dashboard and requires no code.
+
+**1. Create a WAF rate limiting rule (recommended, works on the Free plan).**
+In the Cloudflare dashboard go to **Security → Security rules → Create rule → Rate limiting**. Rate limiting rules are limited per plan (1 rule on Free, 2 on Pro, 5 on Business — see [Cloudflare rate limiting rules](https://developers.cloudflare.com/waf/rate-limiting-rules/)), so a single broad rule protecting every mutating endpoint is the best use of the Free plan quota:
+
+```text
+Field / expression:
+  (http.request.method eq "POST" and starts_with(http.request.uri.path, "/api/"))
+
+Requests: 30
+Period:   1 minute
+Counting characteristics: IP address (default)
+Action:   Managed Challenge (Block is a valid alternative)
+Duration: 10 minutes
+```
+
+This covers `/api/login`, `/api/register`, `/api/password_reset/*`, `/api/changepassword`, `/api/delete_my_account` and the favorites mutations in one rule: humans pass the challenge once, scripted brute force and email-bombing loops fail.
+
+**2. On a paid plan, add a second rule for the upstream-backed GET proxies.**
+`/api/search`, `/api/onecall`, `/api/forecast` and `/api/onecallmonthsummary` are Cloudflare-CDN cached but a bot with unique coordinates can bypass the cache and exhaust the Open-Meteo / MET Norway quotas:
+
+```text
+Field / expression:
+  (http.request.method eq "GET" and starts_with(http.request.uri.path, "/api/"))
+
+Requests: 120
+Period:   1 minute
+Action:   Managed Challenge
+Duration: 1 hour
+```
+
+**3. Optional: registration CAPTCHA.** For targeted registration spam, add [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) to the `/register` form (invisible or managed mode) and verify the token server-side before `createUser`.
+
+**Alternative: the Workers `ratelimit` binding (in-code).** If you prefer limiting inside the Worker, declare a beta [rate limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) in `wrangler.toml`:
+
+```toml
+[[ratelimits]]
+name = "AUTH_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 30, period = 60 }
+```
+
+and call `env.AUTH_RATE_LIMITER.limit({ key: clientIp })` at the top of the auth routes. Caveats: the binding is in beta, the window must be 10 or 60 seconds, and counters are tracked per Cloudflare location (colo), so it is best-effort protection — a determined distributed attack still needs the WAF rule above.
+
 ### Commands
 
 ```bash
@@ -231,5 +277,5 @@ The Cloudflare dashboard build command must run the OpenNext bundling step: use 
 
 ### Known follow-ups
 
-- **Rate-limit registration and add a CAPTCHA.** The origin check only blocks cross-site browser requests; a bot using curl (no `Origin`) is not affected. Add a rate limit on `POST /api/register` (for example 5 requests / 10 minutes / IP), consider Cloudflare Turnstile on the registration form, and add email verification if spam persists.
+- **Registration CAPTCHA and email verification.** Rate limiting of `POST /api/*` (including registration) is covered by the Cloudflare WAF rule documented in [Rate Limiting (Cloudflare WAF)](#rate-limiting-cloudflare-waf) — it must be created in the dashboard, not in code. If registration spam persists after enabling it, add Cloudflare Turnstile on the registration form and email verification.
 - **Rename the `_id` field to `id`.** The D1 columns are already named `id`; `_id` only survives as a compatibility alias in the data-access layer (`src/lib/data.ts`) and is still exposed through the API and the frontend. Renaming it is a breaking change for cached PWA clients and for favorites persisted in IndexedDB, so it should be rolled out in two steps: first return both `id` and `_id` (with the frontend accepting either), then remove `_id` once the new client has been deployed everywhere.
