@@ -221,7 +221,13 @@ test.describe('Onboarding journey (mocked backend)', () => {
       if (pathname === '/api/changepassword' && method === 'POST') {
         const user = currentUser();
         if (!user) return send({ success: false, error: 'Unauthorized' }, 401);
-        user.password = request.postDataJSON().newpassword;
+        // Mirrors the real backend contract: the current password must be
+        // re-verified before the new one is accepted.
+        const { currentpassword, newpassword } = request.postDataJSON();
+        if (String(currentpassword) !== user.password) {
+          return send({ success: false, error: 'current_password_incorrect' }, 401);
+        }
+        user.password = newpassword;
         return send({ success: true });
       }
 
@@ -343,13 +349,14 @@ test.describe('Onboarding journey (mocked backend)', () => {
     });
 
     // 4. The user changes the account password.
-    await test.step('Changes the account password', async () => {
+    await test.step('Changes the account password (current password required)', async () => {
       const changePwdButton = page.getByRole('button', { name: 'Change My Password' });
       await expect(changePwdButton).toBeVisible();
       await changePwdButton.click();
 
       // The "Change My Password" button is replaced by the password form
       await expect(changePwdButton).toHaveCount(0);
+      await expect(page.locator('#currentPassword')).toBeVisible();
       await expect(page.locator('#newPassword')).toBeVisible();
 
       // Clicking Cancel closes the form and restores the button
@@ -357,11 +364,20 @@ test.describe('Onboarding journey (mocked backend)', () => {
       await expect(page.locator('#newPassword')).toHaveCount(0);
       await expect(changePwdButton).toBeVisible();
 
-      // Open again and save the new password; the form closes and the button reappears
+      // Open again; a wrong current password is rejected by the backend and
+      // surfaces the translated error without closing the form.
       await changePwdButton.click();
       await expect(changePwdButton).toHaveCount(0);
       await page.locator('#newPassword').fill(UPDATED_PASSWORD);
       await page.locator('#confirmPassword').fill(UPDATED_PASSWORD);
+      await page.locator('#currentPassword').fill('WrongCurrentPassword9');
+      await page.getByRole('button', { name: 'Save Password' }).click();
+      await expect(page.getByText('Your current password is incorrect.')).toBeVisible();
+      await expect(page.locator('#newPassword')).toBeVisible();
+
+      // The correct current password saves the new one; the form closes and
+      // the button reappears.
+      await page.locator('#currentPassword').fill(INITIAL_PASSWORD);
       await page.getByRole('button', { name: 'Save Password' }).click();
       await expect(page.getByText('Password changed successfully!')).toBeVisible();
       await expect(page.locator('#newPassword')).toHaveCount(0);

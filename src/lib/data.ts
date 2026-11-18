@@ -68,6 +68,10 @@ export async function findUserByUsername(username: string): Promise<DbUser | nul
   return findUser('username = ? COLLATE NOCASE LIMIT 1', username);
 }
 
+export async function findUserById(id: string): Promise<DbUser | null> {
+  return findUser('id = ? LIMIT 1', id);
+}
+
 /** Finds a user whose username or email matches (case-insensitive). */
 export async function findUserByUsernameOrEmail(
   username: string,

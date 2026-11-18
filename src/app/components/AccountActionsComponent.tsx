@@ -1,6 +1,7 @@
 // src/app/components/AccountActionsComponent.tsx
 import React, { useState, useRef } from 'react';
 import { changePassword } from '@/lib/login_api';
+import { MIN_PASSWORD_LENGTH } from '@/lib/passwordPolicy';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface AccountActionsComponentProps {
@@ -11,6 +12,7 @@ export default function AccountActionsComponent({
   onDeleteAccount,
 }: AccountActionsComponentProps) {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -22,7 +24,13 @@ export default function AccountActionsComponent({
     e.preventDefault();
     setPasswordError('');
     setSuccessMessage('');
-    if (newPassword.length < 8) {
+    if (!currentPassword) {
+      setPasswordError(t('current_password_required_error'));
+      return;
+    }
+    // Mirrors the shared server-side policy (src/lib/passwordPolicy.ts) so
+    // the client never submits a password the backend would reject.
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setPasswordError(t('password_min_length_error'));
       return;
     }
@@ -31,8 +39,9 @@ export default function AccountActionsComponent({
       return;
     }
     try {
-      await changePassword(newPassword);
+      await changePassword(currentPassword, newPassword);
       setSuccessMessage(t('password_changed_success'));
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setShowPasswordForm(false);
@@ -41,7 +50,13 @@ export default function AccountActionsComponent({
       }, 3000);
     } catch (error) {
       console.error('Error changing password:', error);
-      setPasswordError(t('failed_to_change_password'));
+      // Map the backend's stable error code to a translated message; keep a
+      // generic fallback for network or server errors.
+      if (error instanceof Error && error.message === 'current_password_incorrect') {
+        setPasswordError(t('current_password_incorrect_error'));
+      } else {
+        setPasswordError(t('failed_to_change_password'));
+      }
     }
   };
 
@@ -49,6 +64,7 @@ export default function AccountActionsComponent({
     setShowPasswordForm(true);
     setPasswordError('');
     setSuccessMessage('');
+    setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
@@ -57,6 +73,7 @@ export default function AccountActionsComponent({
   const closePasswordForm = () => {
     setShowPasswordForm(false);
     setPasswordError('');
+    setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
   };
@@ -76,6 +93,20 @@ export default function AccountActionsComponent({
         >
           <h2 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-4">{t('change_password_title')}</h2>
           <form onSubmit={handleChangePassword}>
+            <div className="mb-4">
+              <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('current_password_label')}
+              </label>
+              <input
+                type="password"
+                id="currentPassword"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                placeholder={t('current_password_placeholder')}
+                required
+              />
+            </div>
             <div className="mb-4">
               <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {t('new_password_label')}

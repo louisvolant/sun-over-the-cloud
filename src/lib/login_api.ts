@@ -23,13 +23,23 @@ export const login = async (username: string, password: string) => {
   }
 };
 
-export const changePassword = async (newpassword: string) => {
-  const response = await api.post(
-    '/api/changepassword',
-    { newpassword },
-    { withCredentials: true }
-  );
-  return response.data;
+export const changePassword = async (currentPassword: string, newPassword: string) => {
+  try {
+    const response = await api.post(
+      '/api/changepassword',
+      { currentpassword: currentPassword, newpassword: newPassword },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    // Surface the backend's stable error code (e.g.
+    // 'current_password_incorrect') instead of a generic axios message so the
+    // account form can translate it.
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data?.error || 'An unexpected error occurred');
+    }
+    throw new Error('Network error or server is unreachable');
+  }
 };
 
 export const checkAuth = async () => {

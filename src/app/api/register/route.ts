@@ -4,6 +4,7 @@ import { createUser, findUserByUsernameOrEmail } from '@/lib/data';
 import { hashPassword } from '@/lib/passwordUtils';
 import { setSessionUser } from '@/lib/session';
 import { assertSameOrigin } from '@/lib/origin';
+import { validatePasswordStrength } from '@/lib/passwordPolicy';
 import { isDisallowedEmailDomain, isEmailDomainPolicyBypassed } from '@/lib/emailPolicy';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,10 +16,10 @@ const validateInput = (username?: string, email?: string, password?: string): st
   if (!email || !emailRegex.test(email)) {
     return 'Email must be a valid email address';
   }
-  if (!password || password.length < 15) {
-    return 'Password must be at least 15 characters';
-  }
-  return null;
+  // Shared policy (src/lib/passwordPolicy.ts) so registration, the
+  // authenticated password change and the reset flow all enforce the same
+  // minimum length.
+  return validatePasswordStrength(password);
 };
 
 export async function POST(request: NextRequest) {
