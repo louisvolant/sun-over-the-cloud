@@ -126,13 +126,15 @@ test.describe('Auth, Session and Protected Routes APIs', () => {
     expect(response.headers()['location']).toContain('error=missing_code');
   });
 
-  test('GET /api/auth/callback/google - settles with oauth_failed instead of hanging on a bad code', async ({ request }) => {
+  test('GET /api/auth/callback/google - settles with state_mismatch instead of hanging without a transaction cookie', async ({ request }) => {
     // The Worker used to be canceled ("code had hung", Cloudflare error 1101)
     // while waiting on an unbounded database call after the Google exchange.
-    // This asserts the callback always produces a response, and that both the
-    // Google calls and the database calls are bounded enough to settle.
+    // This asserts the callback always produces a response. Since the
+    // login-CSRF hardening, a request without the `oauth_tx` transaction
+    // cookie is rejected up front (no Google call, no database call at all),
+    // which is the strongest possible "settles fast" guarantee.
     const response = await request.get('/api/auth/callback/google?code=invalid_code', { maxRedirects: 0 });
     expect([302, 303, 307, 308]).toContain(response.status());
-    expect(response.headers()['location']).toContain('error=oauth_failed');
+    expect(response.headers()['location']).toContain('error=state_mismatch');
   });
 });

@@ -11,8 +11,24 @@ import { setTestEnv, AppEnv, D1Database, D1PreparedStatement, D1Result, KVNamesp
 import { POST as loginRoute } from '@/app/api/login/route';
 import { POST as registerRoute } from '@/app/api/register/route';
 import { GET as googleCallbackRoute } from '@/app/api/auth/callback/google/route';
+import { createOAuthTransaction, OAuthTransaction, OAUTH_TX_COOKIE_NAME } from '@/lib/oauth';
 import { hashPassword } from '@/lib/passwordUtils';
 import { NextRequest } from 'next/server';
+
+/**
+ * Callback request carrying a valid login transaction: the `oauth_tx` cookie
+ * (state + PKCE verifier) and the matching `state` query parameter the
+ * browser would have received from `/api/auth/google`.
+ */
+function oauthCallbackRequest(tx: OAuthTransaction, code: string): NextRequest {
+  const url = `http://localhost:3000/api/auth/callback/google?code=${code}&state=${encodeURIComponent(tx.state)}`;
+  return new NextRequest(url, {
+    headers: {
+      Origin: 'http://localhost:3000',
+      Cookie: `${OAUTH_TX_COOKIE_NAME}=${encodeURIComponent(JSON.stringify(tx))}`,
+    },
+  });
+}
 
 interface StoredUser {
   id: string;
@@ -435,9 +451,7 @@ test.describe('last_login_at tracking in D1', () => {
 
     try {
       // 1. First OAuth login: User does not exist yet -> should be created with last_login_at = created_at
-      const firstReq = new NextRequest('http://localhost:3000/api/auth/callback/google?code=valid_code_1', {
-        headers: { Origin: 'http://localhost:3000' },
-      });
+      const firstReq = oauthCallbackRequest(createOAuthTransaction(), 'valid_code_1');
       const firstRes = await googleCallbackRoute(firstReq);
       expect([302, 307, 308]).toContain(firstRes.status);
 
@@ -450,9 +464,7 @@ test.describe('last_login_at tracking in D1', () => {
       await new Promise((r) => setTimeout(r, 20));
 
       // 2. Second OAuth login: User already exists -> should update last_login_at
-      const secondReq = new NextRequest('http://localhost:3000/api/auth/callback/google?code=valid_code_2', {
-        headers: { Origin: 'http://localhost:3000' },
-      });
+      const secondReq = oauthCallbackRequest(createOAuthTransaction(), 'valid_code_2');
       const secondRes = await googleCallbackRoute(secondReq);
       expect([302, 307, 308]).toContain(secondRes.status);
 
@@ -460,9 +472,7 @@ test.describe('last_login_at tracking in D1', () => {
 
       // 3. Unmigrated schema simulation: Should not fail callback
       mock.setSimulateUnmigrated(true);
-      const thirdReq = new NextRequest('http://localhost:3000/api/auth/callback/google?code=valid_code_3', {
-        headers: { Origin: 'http://localhost:3000' },
-      });
+      const thirdReq = oauthCallbackRequest(createOAuthTransaction(), 'valid_code_3');
       const thirdRes = await googleCallbackRoute(thirdReq);
       expect([302, 307, 308]).toContain(thirdRes.status);
       expect(thirdRes.headers.get('location')).toBe('http://localhost:3000/');
